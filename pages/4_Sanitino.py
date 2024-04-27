@@ -7,8 +7,9 @@ from Crypto.Util.Padding import pad, unpad
 import pyarrow.parquet as pq
 import io
 
-config = toml.load("./.streamlit/secrets.toml")
-key = config["secrets"]["data_key"].encode('utf-8')
+# config = toml.load("./.streamlit/secrets.toml")
+# key = config["secrets"]["data_key"].encode('utf-8')
+key = st.secrets["data_key"]
 
 def decrypt_data(data, key):
     cipher = AES.new(key, AES.MODE_CBC, iv=data[:16])
@@ -57,11 +58,6 @@ def load_data(path):
         encrypted_data = f.read()
         buffer = io.BytesIO(decrypt_data(encrypted_data, key))
         df = pd.read_parquet(buffer, engine='pyarrow')
-    return df
-
-@st.cache_data
-def load_data_xls(path):
-    df = pd.read_excel(path) # Import the data from xls
     return df
 
 def custom_metric(label, value):

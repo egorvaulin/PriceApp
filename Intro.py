@@ -6,9 +6,9 @@ from Crypto.Util.Padding import pad, unpad
 import pyarrow.parquet as pq
 import io
 
-config = toml.load("./.streamlit/secrets.toml")
-key = config["secrets"]["data_key"].encode('utf-8')
-# key = st.secrets["data_key"]
+# config = toml.load("./.streamlit/secrets.toml")
+# key = config["secrets"]["data_key"].encode('utf-8')
+key = st.secrets["data_key"]
 
 def decrypt_data(data, key):
     cipher = AES.new(key, AES.MODE_CBC, iv=data[:16])
