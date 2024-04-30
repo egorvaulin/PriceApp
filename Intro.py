@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from middleware import authenticate_user
 import toml
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -42,48 +43,48 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-st.markdown('## Price monitoring dashboard')
-# Launch intro page
-st.divider()
-st.markdown('##### This dashboard is created to monitor the prices on Idealo.de. The data is scraped from the website and updated every 24 hours.')
+if authenticate_user():
+    st.markdown('## Price monitoring dashboard')
+    # Launch intro page
+    st.divider()
+    st.markdown('##### This dashboard is created to monitor the prices on Idealo.de. The data is scraped from the website and updated every 24 hours.')
 
-with open('./data/Ien.parquet', 'rb') as f:
-    encrypted_data = f.read()
-buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-df = pd.read_parquet(buffer, engine='pyarrow')
-df_de = df[df['country'] == 'de']
-df_fr = df[df['country'] == 'fr']
+    with open('./data/Ien.parquet', 'rb') as f:
+        encrypted_data = f.read()
+        buffer = io.BytesIO(decrypt_data(encrypted_data, key))
+        df = pd.read_parquet(buffer, engine='pyarrow')
+        
+    df_de = df[df['country'] == 'de']
+    df_fr = df[df['country'] == 'fr']
 
-df_de_ld = df_de[df_de['date'] >= df_de['date'].max() - pd.DateOffset(days=10)]
-df_de_ld_grouped = df_de_ld.groupby('article').apply(lambda x: x.nsmallest(3, 'price'),
-                                                     include_groups=False).reset_index(drop=True)
-top_de_shops = df_de_ld_grouped['shop'].value_counts().head(5)
-df_de_ld_grouped2 = df_de_ld.groupby('article').apply(lambda x: x.nsmallest(3, 'price_delivery'),
-                                                      include_groups=False).reset_index(drop=True)
-top_de_shops2 = df_de_ld_grouped2['shop'].value_counts().head(5)
+    df_de_ld = df_de[df_de['date'] >= df_de['date'].max() - pd.DateOffset(days=10)]
+    df_de_ld_grouped = df_de_ld.groupby('article').apply(lambda x: x.nsmallest(3, 'price'),
+                                                        include_groups=False).reset_index(drop=True)
+    top_de_shops = df_de_ld_grouped['shop'].value_counts().head(5)
+    df_de_ld_grouped2 = df_de_ld.groupby('article').apply(lambda x: x.nsmallest(3, 'price_delivery'),
+                                                        include_groups=False).reset_index(drop=True)
+    top_de_shops2 = df_de_ld_grouped2['shop'].value_counts().head(5)
 
-# df_price_de = pd.read_excel("D:\BLANCO\Product_lists\Price List Germany 2024.xlsx")
+    last_date_de = df['date'].max().strftime('%d.%m.%Y')
 
-last_date_de = df['date'].max().strftime('%d.%m.%Y')
+    shops_de = df['shop'].nunique()
 
-shops_de = df['shop'].nunique()
+    articles_de = df['article'].nunique()
 
-articles_de = df['article'].nunique()
+    def custom_metric(label, value):
+        st.markdown(f"""
+            <div style="border:1px solid #343499; border-left:8px solid #343499; border-radius:2px; padding:10px; margin:5px; text-align:center; height:180px; overflow:auto;">
+                <h5>{label}</h5>
+                <h2>{value}</h2>
+            </div>
+            """, unsafe_allow_html=True)
 
-def custom_metric(label, value):
-    st.markdown(f"""
-        <div style="border:1px solid #343499; border-left:8px solid #343499; border-radius:2px; padding:10px; margin:5px; text-align:center; height:180px; overflow:auto;">
-            <h5>{label}</h5>
-            <h2>{value}</h2>
-        </div>
-        """, unsafe_allow_html=True)
+    # Use the custom metric function
+    col1, col2 = st.columns(2)
+    with col1:
+        custom_metric("Last date in the price monitor", last_date_de)
+        custom_metric("Shops with lowest prices among all products", f"<span style='font-size: small;'>{',&nbsp;&nbsp;&nbsp;'.join(top_de_shops.index)}</span>")
 
-# Use the custom metric function
-col1, col2 = st.columns(2)
-with col1:
-    custom_metric("Last date in the price monitor", last_date_de)
-    custom_metric("Shops with lowest prices among all products", f"<span style='font-size: small;'>{',&nbsp;&nbsp;&nbsp;'.join(top_de_shops.index)}</span>")
-    
-with col2:
-    custom_metric("Quantity of e-traders", shops_de)
-    custom_metric("Shops with lowest prices with delivery", f"<span style='font-size: small;'>{',&nbsp;&nbsp;&nbsp;'.join(top_de_shops2.index)}</span>")
+    with col2:
+        custom_metric("Quantity of e-traders", shops_de)
+        custom_metric("Shops with lowest prices with delivery", f"<span style='font-size: small;'>{',&nbsp;&nbsp;&nbsp;'.join(top_de_shops2.index)}</span>")
