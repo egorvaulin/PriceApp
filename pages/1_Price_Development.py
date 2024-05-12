@@ -113,7 +113,7 @@ if authenticate_user():
             "first",
         ),  # This assumes the shop name is in the same row as the minimum price
     )
-    mean_price_data = filt1_df.groupby("date").agg(mean_price=("price", "mean"))
+    mean_price_data = filt1_df.groupby("date").agg(mean_price=(column, "mean"))
     mean_price = mean_price_data["mean_price"]
     min_price = min_price_data["min_price"]
     min_price_shop = min_price_data["min_price_shop"]
