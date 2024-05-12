@@ -107,7 +107,7 @@ if authenticate_user():
     )  # Convert the date column to datetime
 
     min_price_data = filt1_df.groupby("date").agg(
-        min_price=("price", "min"),
+        min_price=(column, "min"),
         min_price_shop=(
             "shop",
             "first",
