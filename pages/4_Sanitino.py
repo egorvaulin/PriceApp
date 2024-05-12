@@ -85,7 +85,7 @@ if authenticate_user():
     vat.set_index("country", inplace=True)
     hnp = load_data("./data/hnp24.parquet")
     hnp.columns = hnp.columns.str.lower()
-    rrp = load_data("./data/rrp.parquet")
+    rrp = load_data("./data/Rrp.parquet")
     rrp.columns = rrp.columns.str.lower()
     ancor = rrp[rrp["country"] == "an"]
     rrp = rrp[rrp["country"] != "an"]
