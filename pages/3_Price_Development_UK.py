@@ -50,7 +50,7 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 if authenticate_user():
-    st.markdown("## Price development Germany")
+    st.markdown("## Price development United Kingdom")
     st.divider()
 
     @st.cache_data
@@ -62,7 +62,7 @@ if authenticate_user():
         return df
 
     df = load_data("./data/Ien.parquet")
-    df_de = df[df["country"] == "de"]
+    df_de = df[df["country"] == "uk"]
     hnp = load_data("./data/hnp24.parquet")
     hnp.columns = hnp.columns.str.lower()
 

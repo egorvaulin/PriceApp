@@ -122,7 +122,7 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
 
 
 if authenticate_user():
-    st.markdown("## Product analysis")
+    st.markdown("## Product analysis France")
     st.divider()
 
     @st.cache_data
@@ -134,7 +134,7 @@ if authenticate_user():
         return df
 
     df = load_data("./data/Ien.parquet")
-    df_de = df[df["country"] == "de"]
+    df_de = df[df["country"] == "fr"]
     df_de = df_de.drop(columns=["country"])
 
     hnp = load_data("./data/hnp24.parquet")
