@@ -120,7 +120,9 @@ if authenticate_user():
 
     df_sp = df_s[df_s["product"] == product]
 
-    df_sp["price_eur"] = df_sp.apply(calculate_price, args=(czk, ron), axis=1).round(2)
+    df_sp.loc[:, "price_eur"] = df_sp.apply(
+        calculate_price, args=(czk, ron), axis=1
+    ).round(2)
     rrp["price_eur"] = rrp.apply(calculate_price, args=(czk, ron), axis=1).round(2)
     rrp = rrp.merge(vat, left_on="country", right_index=True, how="left")
     rrp["price_eur"] = (rrp["price_eur"] / (1 + rrp["vat"])).round(2)
@@ -333,3 +335,42 @@ if authenticate_user():
             title_text="Price by country and stock quantity over Time", row=2, col=1
         )
         st.plotly_chart(fig_stock, use_container_width=True)
+
+st.divider()
+col21, col22 = st.columns([1, 4], gap="large")
+with col21:
+    country1 = st.selectbox("Select a country", countries, index=0)
+    st.divider()
+    margin = st.slider(
+        "Margin", min_value=25.0, max_value=50.0, value=40.0, step=1.0, format="%.1f%%"
+    )
+
+with col22:
+    df_corr = df_s[df_s["country"] == country1]
+    df_corr = df_corr[df_corr["date"] == date]
+    df_corr = df_corr.merge(
+        ancor[["article", "price"]].rename(columns={"price": "ancor"}),
+        on="article",
+        how="left",
+    )
+    df_corr["price_eur"] = df_corr.apply(
+        calculate_price, args=(czk, ron), axis=1
+    ).round(2)
+    vat1 = vat.loc[country1, "vat"]
+    df_corr["margin"] = (
+        1 - df_corr["ancor"] / (df_corr["price_eur"] / (1 + vat1))
+    ).round(4)
+    df_corr = df_corr[df_corr["margin"] < margin / 100].copy()
+    df_corr.loc[:, "article "] = df_corr["article"].astype(str).str.replace(",", "")
+    df_corr = df_corr[
+        ["article ", "product", "stock", "price_eur", "margin"]
+    ].sort_values("margin", ascending=True)
+    df_corr.loc[:, "price "] = (
+        df_corr["price_eur"].round(1).astype(str).str.replace(".", ",")
+    )
+    df_corr.loc[:, "margin %"] = (df_corr["margin"] * 100).map("{:.1f}%".format)
+    corr_len = len(df_corr)
+    df_corr.drop(columns=["price_eur", "margin"], inplace=True)
+    title = f"Products with margin less than {margin}% in {country1} on {date.strftime('%d.%m.%Y')} (quantity of products: {corr_len})"
+    st.markdown(f"##### {title}")
+    st.dataframe(df_corr, hide_index=True, use_container_width=True)

@@ -150,7 +150,7 @@ if authenticate_user():
     df_de["disc2"] = 1 - df_de["price_delivery"] / df_de["hnp"]
 
     st.markdown("###### Select a product for analysis.")
-    col1, col2, col3 = st.columns([2, 0.1, 5])
+    col1, col2 = st.columns([2, 5], gap="large")
     with col1:
         product = st.selectbox(
             "Select a product from the list", df_de["product"].unique(), index=0
@@ -166,8 +166,6 @@ if authenticate_user():
         st.divider()
 
     with col2:
-        st.empty()
-    with col3:
         df_de_prod = df_de[df_de["product"] == product].copy()
         df_de_prod["date"] = pd.to_datetime(df_de_prod["date"])
         date1 = pd.to_datetime(date1)
@@ -184,7 +182,7 @@ if authenticate_user():
 
     st.divider()
 
-    col11, col12, col13 = st.columns([2, 1, 6])
+    col11, col12 = st.columns([1, 3], gap="large")
 
     with col11:
         st.markdown(
@@ -207,9 +205,6 @@ if authenticate_user():
         )
 
     with col12:
-        st.empty()
-
-    with col13:
         if not check_date:
             previous_day = pd.to_datetime(date1) - pd.DateOffset(
                 days=1

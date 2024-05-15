@@ -89,7 +89,7 @@ if authenticate_user():
     st.markdown("## Analysis per e-traders")
     st.divider()
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4, gap="medium")
     with col1:
         shop1 = st.selectbox("Select an e-trader", df_de["shop"].unique(), index=0)
     with col2:
@@ -188,7 +188,7 @@ if authenticate_user():
         ["article", "product", column2, column]
     ].reset_index(drop=True)
 
-    coln1, coln2, coln3, coln4, coln5 = st.columns([2, 0.1, 4, 0.1, 4])
+    coln1, coln2, coln3 = st.columns([2, 4, 4], gap="large")
     with coln1:
         shop_rank_counts_1["counts"] = shop_rank_counts_1["counts"].apply(
             lambda x: "{:,}".format(x).replace(",", ".")
@@ -209,9 +209,6 @@ if authenticate_user():
         )
 
     with coln2:
-        st.empty()
-
-    with coln3:
         df_de_sorted1_ranked["article"] = df_de_sorted1_ranked["article"].apply(
             lambda x: "{:,}".format(x).replace(",", "")
         )
@@ -232,10 +229,7 @@ if authenticate_user():
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
         st.dataframe(df_de_sorted1_ranked, hide_index=True, use_container_width=True)
 
-    with coln4:
-        st.empty()
-
-    with coln5:
+    with coln3:
         df_de_sorted2_ranked["article"] = df_de_sorted2_ranked["article"].apply(
             lambda x: "{:,}".format(x).replace(",", "")
         )
