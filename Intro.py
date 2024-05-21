@@ -80,11 +80,11 @@ if authenticate_user():
     )
     top_de_shops2 = df_de_ld_grouped2["shop"].value_counts().head(5)
 
-    last_date_de = df["date"].max().strftime("%d.%m.%Y")
+    last_date_de = df_de["date"].max().strftime("%d.%m.%Y")
 
-    shops_de = df["shop"].nunique()
+    shops_de = df_de["shop"].nunique()
 
-    articles_de = df["article"].nunique()
+    articles_de = df_de["article"].nunique()
 
     def custom_metric(label, value):
         st.markdown(
