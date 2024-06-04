@@ -65,8 +65,10 @@ if authenticate_user():
         df = pd.read_parquet(buffer, engine="pyarrow")
 
     df_de = df[df["country"] == "de"]
-
-    df_de_ld = df_de[df_de["date"] >= df_de["date"].max() - pd.DateOffset(days=10)]
+    df_de["date"] = pd.to_datetime(df_de["date"])
+    df_de_ld = df_de[
+        df_de["date"] >= pd.Timestamp(df_de["date"].max() - pd.DateOffset(days=10))
+    ]
     df_de_ld_grouped = (
         df_de_ld.groupby("article")
         .apply(lambda x: x.nsmallest(3, "price"), include_groups=False)
