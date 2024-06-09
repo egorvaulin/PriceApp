@@ -2,7 +2,7 @@ import polars as pl
 import streamlit as st
 import plotly.graph_objects as go
 from middleware import authenticate_user
-from datetime import date, timedelta
+from datetime import timedelta
 import toml
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -157,7 +157,7 @@ if authenticate_user():
         product = st.selectbox(
             "Select a product from the list",
             df_de["product"].unique().sort().to_list(),
-            index=0,
+            index=1,
         )
         st.divider()
         date1 = st.date_input(
@@ -226,6 +226,6 @@ if authenticate_user():
         pivot_df = filtered_df.pivot(
             values=column2, index="shop", columns="date", aggregate_function="min"
         )
-        max_date = pivot_df.columns.max()
+        max_date = pivot_df.columns[-1]
         pivot_df = pivot_df.sort(by=max_date, descending=False)
         st.dataframe(pivot_df.head(10), use_container_width=True)

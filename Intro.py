@@ -119,12 +119,12 @@ if authenticate_user():
         custom_metric("Last date in the price monitor", last_date_de)
         custom_metric(
             "Shops with lowest prices among all products",
-            f"<span style='font-size: small;'>{',&nbsp;&nbsp;&nbsp;'.join(top_de_shops.index)}</span>",
+            f"<span style='font-size: small;'>{top_de_shops}</span>",
         )
 
     with col2:
         custom_metric("Quantity of e-traders", shops_de)
         custom_metric(
             "Shops with lowest prices with delivery",
-            f"<span style='font-size: small;'>{',&nbsp;&nbsp;&nbsp;'.join(top_de_shops2.index)}</span>",
+            f"<span style='font-size: small;'>{top_de_shops2}</span>",
         )

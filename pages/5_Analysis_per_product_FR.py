@@ -51,7 +51,7 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 def create_chart(df, title):  # Create a bar chart of the 'price' column
     smallest_price = df[column2].min()
-    df.with_columns(surplus=pl.col(column2) - smallest_price)
+    df = df.with_columns(surplus=pl.col(column2) - smallest_price)
     chart = go.Figure(
         data=[
             go.Bar(
@@ -157,7 +157,7 @@ if authenticate_user():
         product = st.selectbox(
             "Select a product from the list",
             df_de["product"].unique().sort().to_list(),
-            index=0,
+            index=1,
         )
         st.divider()
         date1 = st.date_input(
@@ -226,6 +226,6 @@ if authenticate_user():
         pivot_df = filtered_df.pivot(
             values=column2, index="shop", columns="date", aggregate_function="min"
         )
-        max_date = pivot_df.columns.max()
+        max_date = pivot_df.columns[-1]
         pivot_df = pivot_df.sort(by=max_date, descending=False)
         st.dataframe(pivot_df.head(10), use_container_width=True)

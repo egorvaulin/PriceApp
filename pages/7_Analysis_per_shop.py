@@ -244,7 +244,7 @@ if authenticate_user():
         )
 
     fig.update_layout(  # Set title and labels
-        title_text=f"Discounts distribution for {date.strftime('%d.%m.%Y')} for {shop1} and {shop2}",
+        title_text=f"Discounts distribution for {date1.strftime('%d.%m.%Y')} for {shop1} and {shop2}",
         xaxis_title=None,
         yaxis_title="Quantity of products",
         bargap=0.2,
@@ -269,57 +269,57 @@ if authenticate_user():
     col11, col12, col13, col14, col15, col16, col17 = st.columns([2, 2, 2, 1, 2, 2, 2])
     with col11:
         custom_metric(
-            f"Price increases since day before {date.strftime('%d.%m.%Y')} for {shop1}",
+            f"Price increases since day before {date1.strftime('%d.%m.%Y')} for {shop1}",
             price_changes(shop1)[0],
         )
         custom_metric(
-            f"Price decreases since day before {date.strftime('%d.%m.%Y')} for {shop1}",
+            f"Price decreases since day before {date1.strftime('%d.%m.%Y')} for {shop1}",
             price_changes(shop1)[1],
         )
     with col12:
         custom_metric(
-            f"Price increases since week before {date.strftime('%d.%m.%Y')} for {shop1}",
+            f"Price increases since week before {date1.strftime('%d.%m.%Y')} for {shop1}",
             price_changes(shop1)[2],
         )
         custom_metric(
-            f"Price decreases since week before {date.strftime('%d.%m.%Y')} for {shop1}",
+            f"Price decreases since week before {date1.strftime('%d.%m.%Y')} for {shop1}",
             price_changes(shop1)[3],
         )
     with col13:
         custom_metric(
-            f"Price increases since month before {date.strftime('%d.%m.%Y')} for {shop1}",
+            f"Price increases since month before {date1.strftime('%d.%m.%Y')} for {shop1}",
             price_changes(shop1)[4],
         )
         custom_metric(
-            f"Price decreases since month before {date.strftime('%d.%m.%Y')} for {shop1}",
+            f"Price decreases since month before {date1.strftime('%d.%m.%Y')} for {shop1}",
             price_changes(shop1)[5],
         )
     with col14:
         st.empty()
     with col15:
         custom_metric(
-            f"Price increases since day before {date.strftime('%d.%m.%Y')} for {shop2}",
+            f"Price increases since day before {date1.strftime('%d.%m.%Y')} for {shop2}",
             price_changes(shop2)[0],
         )
         custom_metric(
-            f"Price decreases since day before {date.strftime('%d.%m.%Y')} for {shop2}",
+            f"Price decreases since day before {date1.strftime('%d.%m.%Y')} for {shop2}",
             price_changes(shop2)[1],
         )
     with col16:
         custom_metric(
-            f"Price increases since week before {date.strftime('%d.%m.%Y')} for {shop2}",
+            f"Price increases since week before {date1.strftime('%d.%m.%Y')} for {shop2}",
             price_changes(shop2)[2],
         )
         custom_metric(
-            f"Price decreases since week before {date.strftime('%d.%m.%Y')} for {shop2}",
+            f"Price decreases since week before {date1.strftime('%d.%m.%Y')} for {shop2}",
             price_changes(shop2)[3],
         )
     with col17:
         custom_metric(
-            f"Price increases since month before {date.strftime('%d.%m.%Y')} for {shop2}",
+            f"Price increases since month before {date1.strftime('%d.%m.%Y')} for {shop2}",
             price_changes(shop2)[4],
         )
         custom_metric(
-            f"Price decreases since month before {date.strftime('%d.%m.%Y')} for {shop2}",
+            f"Price decreases since month before {date1.strftime('%d.%m.%Y')} for {shop2}",
             price_changes(shop2)[5],
         )
