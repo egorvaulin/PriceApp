@@ -1,10 +1,10 @@
 import streamlit as st
-import pandas as pd
+import polars as pl
+from datetime import timedelta
 from middleware import authenticate_user
 import toml
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
-import pyarrow.parquet as pq
 import io
 
 config = toml.load("./.streamlit/secrets.toml")
@@ -62,31 +62,45 @@ if authenticate_user():
     with open("./data/Ien.parquet", "rb") as f:
         encrypted_data = f.read()
         buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-        df = pd.read_parquet(buffer, engine="pyarrow")
+        df = pl.read_parquet(buffer)
 
-    df_de = df[df["country"] == "de"]
-    df_de["date"] = pd.to_datetime(df_de["date"])
-    df_de_ld = df_de[
-        df_de["date"] >= pd.Timestamp(df_de["date"].max() - pd.DateOffset(days=10))
-    ]
+    df_de = df.filter(pl.col("country") == "de").with_columns(
+        pl.col("date").cast(pl.Date)
+    )
+    df_de_ld = df_de.filter(
+        pl.col("date") >= (pl.col("date").max() - timedelta(days=10))
+    )
+
     df_de_ld_grouped = (
-        df_de_ld.groupby("article")
-        .apply(lambda x: x.nsmallest(3, "price"), include_groups=False)
-        .reset_index(drop=True)
+        (
+            df_de_ld.drop("country", "price_delivery")
+            .sort("price")
+            .group_by("date", "article")
+            .agg(pl.col("shop").head(3))
+            .explode("shop")
+        )["shop"]
+        .value_counts()
+        .sort("count", descending=True)
+        .head(5)
     )
-    top_de_shops = df_de_ld_grouped["shop"].value_counts().head(5)
+    top_de_shops = ", ".join(df_de_ld_grouped["shop"].to_list())
+
     df_de_ld_grouped2 = (
-        df_de_ld.groupby("article")
-        .apply(lambda x: x.nsmallest(3, "price_delivery"), include_groups=False)
-        .reset_index(drop=True)
+        (
+            df_de_ld.drop("country", "price")
+            .sort("price_delivery")
+            .group_by("date", "article")
+            .agg(pl.col("shop").head(3))
+            .explode("shop")
+        )["shop"]
+        .value_counts()
+        .sort("count", descending=True)
+        .head(5)
     )
-    top_de_shops2 = df_de_ld_grouped2["shop"].value_counts().head(5)
+    top_de_shops2 = ", ".join(df_de_ld_grouped["shop"].to_list())
 
-    last_date_de = df_de["date"].max().strftime("%d.%m.%Y")
-
-    shops_de = df_de["shop"].nunique()
-
-    articles_de = df_de["article"].nunique()
+    last_date_de = df["date"].max().strftime("%d.%m.%Y")
+    shops_de = df_de["shop"].unique().len()
 
     def custom_metric(label, value):
         st.markdown(

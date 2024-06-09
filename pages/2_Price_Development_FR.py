@@ -1,12 +1,10 @@
-import numpy as np
-import pandas as pd
+import polars as pl
 import streamlit as st
 import plotly.graph_objects as go
 from middleware import authenticate_user
 import toml
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
-import pyarrow.parquet as pq
 import io
 
 config = toml.load("./.streamlit/secrets.toml")
@@ -58,36 +56,38 @@ if authenticate_user():
         with open(path, "rb") as f:
             encrypted_data = f.read()
             buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-            df = pd.read_parquet(buffer, engine="pyarrow")
+            df = pl.read_parquet(buffer)
         return df
 
     df = load_data("./data/Ien.parquet")
-    df_de = df[df["country"] == "fr"]
     hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = hnp.columns.str.lower()
+    hnp.columns = [col.lower() for col in hnp.columns]
 
-    df_de = df_de.merge(
-        hnp[["article", "hnp", "subcategory", "family", "product"]],
-        on="article",
-        how="left",
+    df_de = (
+        df.filter(pl.col("country") == "fr")
+        .join(
+            hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
+            on="article",
+            how="left",
+        )
+        .drop("country")
     )
-    df_de.drop(columns=["country"], inplace=True)
 
     col1, col2 = st.columns(2)  # Set up 2 columns for user input
     with col1:
-        selectbox_options = df_de["product"].unique()
+        selectbox_options = df_de["product"].unique().sort().to_list()
         selected_product = st.selectbox("Select an article", selectbox_options, index=0)
 
-    filt1_df = df_de[df_de["product"] == selected_product]
+    filt1_df = df_de.filter(pl.col("product") == selected_product)
     with col2:
-        multiselect_options = np.sort(filt1_df.shop.unique())
+        multiselect_options = filt1_df["shop"].unique().sort().to_list()
         # Check if the default values exist in the options
         default_values = ["Amazon", "sanitino.de", "sonono.de"]
         default_values = [
             shop for shop in default_values if shop in multiselect_options
         ][:2]
         # If no default values exist in the options, choose a different default value
-        if not default_values and multiselect_options.size > 0:
+        if not default_values and len(multiselect_options) > 0:
             default_values = [multiselect_options[0]]
         selected_shops = st.multiselect(
             "Select shops to compare", multiselect_options, default=default_values
@@ -99,23 +99,23 @@ if authenticate_user():
     else:
         column = "price"
 
-    mask = filt1_df["shop"].isin(selected_shops)
-    filtered_df = filt1_df.loc[mask].copy()  # Filter the data based on selected shops
-    filtered_df.loc[:, "date"] = pd.to_datetime(
-        filtered_df["date"]
-    )  # Convert the date column to datetime
-
-    min_price_data = filt1_df.groupby("date").agg(
-        min_price=(column, "min"),
-        min_price_shop=(
-            "shop",
-            "first",
-        ),  # This assumes the shop name is in the same row as the minimum price
+    filtered_df = filt1_df.filter(
+        pl.col("shop").is_in(selected_shops)
+    )  # Filter the data based on selected shops
+    min_price_data = (
+        filt1_df.sort(column)
+        .group_by("date")
+        .agg(
+            pl.col(column).first().alias("min_price"),
+            pl.col("shop").first().alias("min_price_shop"),
+        )
+        .sort("date")
     )
-    mean_price_data = filt1_df.groupby("date").agg(mean_price=(column, "mean"))
-    mean_price = mean_price_data["mean_price"]
-    min_price = min_price_data["min_price"]
-    min_price_shop = min_price_data["min_price_shop"]
+    mean_price_data = (
+        filt1_df.group_by("date")
+        .agg(pl.col(column).mean().round(1).alias("mean_price"))
+        .sort("date")
+    )
     # Create a line plot
     fig = go.Figure()
     colors_p = [
@@ -130,11 +130,11 @@ if authenticate_user():
     ]  # Add more colors if needed
 
     for i, shop in enumerate(selected_shops):
-        shop_data = filtered_df[filtered_df["shop"] == shop]
+        shop_data = filtered_df.filter(pl.col("shop") == shop)
         fig.add_trace(
             go.Scatter(
-                x=shop_data["date"],
-                y=shop_data[column],
+                x=shop_data["date"].to_list(),
+                y=shop_data[column].to_list(),
                 name=shop,
                 mode="lines",
                 line=dict(color=colors_p[i]),
@@ -143,19 +143,21 @@ if authenticate_user():
     # Add minimum price line
     fig.add_trace(
         go.Scatter(
-            x=min_price.index,
-            y=min_price,
+            x=min_price_data["date"].to_list(),
+            y=min_price_data["min_price"].to_list(),
             mode="lines",
             name="Minimum Price",
             line=dict(dash="dash", color="#818080"),
-            text=min_price_shop,  # Add shop name as hover text
+            text=min_price_data[
+                "min_price_shop"
+            ].to_list(),  # Add shop name as hover text
             hoverinfo="text+y",
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=mean_price.index,
-            y=mean_price,
+            x=mean_price_data["date"].to_list(),
+            y=mean_price_data["mean_price"].to_list(),
             mode="lines",
             name="Mean Price",
             line=dict(

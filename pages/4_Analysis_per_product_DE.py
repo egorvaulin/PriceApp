@@ -1,11 +1,11 @@
-import pandas as pd
+import polars as pl
 import streamlit as st
 import plotly.graph_objects as go
 from middleware import authenticate_user
+from datetime import date, timedelta
 import toml
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
-import pyarrow.parquet as pq
 import io
 
 config = toml.load("./.streamlit/secrets.toml")
@@ -51,7 +51,7 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 def create_chart(df, title):  # Create a bar chart of the 'price' column
     smallest_price = df[column2].min()
-    df["surplus"] = df[column2] - smallest_price
+    df = df.with_columns(surplus=pl.col(column2) - smallest_price)
     chart = go.Figure(
         data=[
             go.Bar(
@@ -122,7 +122,7 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
 
 
 if authenticate_user():
-    st.markdown("## Product analysis France")
+    st.markdown("## Product analysis Germany")
     st.divider()
 
     @st.cache_data
@@ -130,30 +130,34 @@ if authenticate_user():
         with open(path, "rb") as f:
             encrypted_data = f.read()
             buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-            df = pd.read_parquet(buffer, engine="pyarrow")
+            df = pl.read_parquet(buffer)
         return df
 
     df = load_data("./data/Ien.parquet")
-    df_de = df[df["country"] == "fr"]
-    df_de = df_de.drop(columns=["country"])
-
     hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = hnp.columns.str.lower()
+    hnp.columns = [col.lower() for col in hnp.columns]
 
-    df_de = df_de.merge(
-        hnp[["article", "hnp", "subcategory", "family", "product"]],
-        on="article",
-        how="left",
+    df_de = (
+        df.filter(pl.col("country") == "de")
+        .join(
+            hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
+            on="article",
+            how="left",
+        )
+        .drop("country")
+        .with_columns(
+            disc1=1 - pl.col("price") / pl.col("hnp"),
+            disc2=1 - pl.col("price_delivery") / pl.col("hnp"),
+        )
     )
-
-    df_de["disc1"] = 1 - df_de["price"] / df_de["hnp"]
-    df_de["disc2"] = 1 - df_de["price_delivery"] / df_de["hnp"]
 
     st.markdown("###### Select a product for analysis.")
     col1, col2 = st.columns([2, 5], gap="large")
     with col1:
         product = st.selectbox(
-            "Select a product from the list", df_de["product"].unique(), index=0
+            "Select a product from the list",
+            df_de["product"].unique().sort().to_list(),
+            index=0,
         )
         st.divider()
         date1 = st.date_input(
@@ -166,16 +170,14 @@ if authenticate_user():
         st.divider()
 
     with col2:
-        df_de_prod = df_de[df_de["product"] == product].copy()
-        df_de_prod["date"] = pd.to_datetime(df_de_prod["date"])
-        date1 = pd.to_datetime(date1)
-        df_sel_date = df_de_prod[df_de_prod["date"] == date1]
+        df_de_prod = df_de.filter(pl.col("product") == product)
+        df_sel_date = df_de_prod.filter(pl.col("date") == date1)
 
         column = "disc2" if check else "disc1"
         column2 = "price_delivery" if check else "price"
 
         graph1 = create_chart(
-            df_sel_date.sort_values(by=column, ascending=False).head(12),
+            df_sel_date.sort(by=column, descending=True).head(12),
             f"Shops and prices for {product} with discounts from HNP",
         )
         st.plotly_chart(graph1, use_container_width=True)
@@ -206,28 +208,24 @@ if authenticate_user():
 
     with col12:
         if not check_date:
-            previous_day = pd.to_datetime(date1) - pd.DateOffset(
+            previous_day = date1 - timedelta(
                 days=1
             )  # Calculate the previous day, previous week, and previous month dates
-            previous_week = pd.to_datetime(date1) - pd.DateOffset(weeks=1)
-            previous_month = pd.to_datetime(date1) - pd.DateOffset(months=1)
+            previous_week = date1 - timedelta(weeks=1)
+            previous_month = date1 - timedelta(days=30)
         else:
             date1 = date2
             previous_day = date3
             previous_week = date4
             previous_month = date5
         # Filter the dataframe for the desired dates
-        filtered_df = df_de_prod[
-            df_de_prod["date"].isin(
-                [date1, previous_day, previous_week, previous_month]
-            )
-        ].reset_index(drop=True)
-        filtered_df["date"] = pd.to_datetime(filtered_df["date"]).dt.date
-        filtered_df = filtered_df.sort_values(by="date", ascending=False)
+        filtered_df = df_de_prod.filter(
+            pl.col("date").is_in([date1, previous_day, previous_week, previous_month])
+        ).sort("date", descending=False)
 
-        pivot_df = pd.pivot_table(
-            filtered_df, values=column2, index="shop", columns="date"
+        pivot_df = filtered_df.pivot(
+            values=column2, index="shop", columns="date", aggregate_function="min"
         )
         max_date = pivot_df.columns.max()
-        pivot_df = pivot_df.sort_values(by=max_date, ascending=True)
+        pivot_df = pivot_df.sort(by=max_date, descending=False)
         st.dataframe(pivot_df.head(10), use_container_width=True)
