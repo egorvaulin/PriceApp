@@ -178,7 +178,7 @@ if authenticate_user():
             ),
             on=["country", "article"],
             how="left",
-            coalesce=True,
+            # coalesce=True,
         )
         .with_columns(
             pl.col("rrp").fill_null(pl.col("hnp")),
