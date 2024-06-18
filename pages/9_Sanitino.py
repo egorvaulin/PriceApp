@@ -139,14 +139,24 @@ if authenticate_user():
             .round(2)
             .alias("price_eur")
         )
-        .join(vat, on="country", how="left", coalesce=True)
+        .join(
+            vat,
+            on="country",
+            how="left",
+            #   coalesce=True
+        )
         .with_columns(
             (pl.col("price_eur") / (1 + pl.col("vat"))).round(2).alias("price_net")
         )
     )
 
     df_sp = (
-        df_sp.join(vat, on="country", how="left", coalesce=True)
+        df_sp.join(
+            vat,
+            on="country",
+            how="left",
+            #    coalesce=True
+        )
         .with_columns(
             (pl.col("price_eur") / (1 + pl.col("vat"))).round(2).alias("price_net")
         )
@@ -160,7 +170,7 @@ if authenticate_user():
             ancor[["article", "price"]].rename({"price": "ancor"}),
             on="article",
             how="left",
-            coalesce=True,
+            # coalesce=True,
         )
         .join(
             rrp[["article", "country", "price_eur", "price_net"]].rename(
@@ -408,7 +418,7 @@ if authenticate_user():
                 ancor[["article", "price"]].rename({"price": "ancor"}),
                 on="article",
                 how="left",
-                coalesce=True,
+                # coalesce=True,
             )
             .with_columns(
                 margin=(1 - pl.col("ancor") / (pl.col("price_eur") / (1 + vat1))).round(

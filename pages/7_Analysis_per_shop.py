@@ -79,6 +79,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
             on="article",
             how="left",
+            # coalesce=True,
         )
         .drop("country")
         .with_columns(
