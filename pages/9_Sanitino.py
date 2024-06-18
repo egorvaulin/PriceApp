@@ -93,6 +93,7 @@ if authenticate_user():
         hnp[["article", "hnp", "subcategory", "family", "product"]],
         on="article",
         how="left",
+        coalesce=True,
     ).with_columns(pl.col("date").cast(pl.Date))
 
     subcat = df_s["subcategory"].unique().sort().to_list()
@@ -138,14 +139,14 @@ if authenticate_user():
             .round(2)
             .alias("price_eur")
         )
-        .join(vat, on="country", how="left")
+        .join(vat, on="country", how="left", coalesce=True)
         .with_columns(
             (pl.col("price_eur") / (1 + pl.col("vat"))).round(2).alias("price_net")
         )
     )
 
     df_sp = (
-        df_sp.join(vat, on="country", how="left")
+        df_sp.join(vat, on="country", how="left", coalesce=True)
         .with_columns(
             (pl.col("price_eur") / (1 + pl.col("vat"))).round(2).alias("price_net")
         )
@@ -159,6 +160,7 @@ if authenticate_user():
             ancor[["article", "price"]].rename({"price": "ancor"}),
             on="article",
             how="left",
+            coalesce=True,
         )
         .join(
             rrp[["article", "country", "price_eur", "price_net"]].rename(
@@ -166,6 +168,7 @@ if authenticate_user():
             ),
             on=["country", "article"],
             how="left",
+            coalesce=True,
         )
         .with_columns(
             pl.col("rrp").fill_null(pl.col("hnp")),
@@ -268,10 +271,10 @@ if authenticate_user():
         fig.add_trace(
             go.Bar(
                 x=sorted_countries,
-                y=df_date["price_net"],
-                name=f"Net price EUR on {formatted_date}",
+                y=df_date["price_eur"],
+                name=f"Price EUR on {formatted_date}",
                 marker_color=color,
-                text=df_date["price_net"].round(1).cast(pl.Utf8),  # Add values as text
+                text=df_date["price_eur"].round(1).cast(pl.Utf8),  # Add values as text
                 textposition="auto",  # Position text inside the bars
                 textfont=dict(color="white"),  # Change text color to white
             ),
@@ -288,12 +291,14 @@ if authenticate_user():
     df_spd = df_sp.filter(pl.col("date") >= previous_month).sort("date")
     df_stock = df_spd.filter(pl.col("country") == "de").select("date", "stock")
 
-    countries = df_spd["country"].unique().sort().to_list()
+    # countries = df_spd["country"].unique().sort().to_list()
     col11, col12 = st.columns([1, 6])
     with col11:
         try:
             countries_selected = st.multiselect(
-                "Select countries", countries, default=["cz", "de", "es", "sk"]
+                "Select countries",
+                df_spd["country"].unique().sort().to_list(),
+                default=["cz", "de", "es", "sk"],
             )
         except:
             pass
@@ -369,62 +374,72 @@ if authenticate_user():
         )
         st.plotly_chart(fig_stock, use_container_width=True)
 
-st.divider()
-col21, col22 = st.columns([1, 4], gap="large")
-with col21:
-    country1 = st.selectbox("Select a country", countries, index=0)
     st.divider()
-    margin = st.slider(
-        "Margin", min_value=25.0, max_value=50.0, value=40.0, step=1.0, format="%.1f%%"
-    )
+    col21, col22 = st.columns([1, 4], gap="large")
+    with col21:
+        country1 = st.selectbox(
+            "Select a country", df_spd["country"].unique().sort().to_list(), index=0
+        )
+        st.divider()
+        margin = st.slider(
+            "Margin",
+            min_value=25.0,
+            max_value=50.0,
+            value=40.0,
+            step=1.0,
+            format="%.1f%%",
+        )
 
-with col22:
-    vat1 = vat.filter(pl.col("country") == country1)["vat"].to_list()[0]
-    df_corr = (
-        df_s.filter(pl.col("country") == "de", pl.col("date") == date1)
-        .with_columns(
-            pl.when(pl.col("country") == "cz")
-            .then((pl.col("price") / czk).round(2))
-            .otherwise(
-                pl.when(pl.col("country") == "ro")
-                .then((pl.col("price") / ron).round(2))
-                .otherwise(pl.col("price")),
+    with col22:
+        vat1 = vat.filter(pl.col("country") == country1)["vat"].to_list()[0]
+        df_corr = (
+            df_s.filter(pl.col("country") == "de", pl.col("date") == date1)
+            .with_columns(
+                pl.when(pl.col("country") == "cz")
+                .then((pl.col("price") / czk).round(2))
+                .otherwise(
+                    pl.when(pl.col("country") == "ro")
+                    .then((pl.col("price") / ron).round(2))
+                    .otherwise(pl.col("price")),
+                )
+                .alias("price_eur")
             )
-            .alias("price_eur")
+            .join(
+                ancor[["article", "price"]].rename({"price": "ancor"}),
+                on="article",
+                how="left",
+                coalesce=True,
+            )
+            .with_columns(
+                margin=(1 - pl.col("ancor") / (pl.col("price_eur") / (1 + vat1))).round(
+                    4
+                )
+            )
         )
-        .join(
-            ancor[["article", "price"]].rename({"price": "ancor"}),
-            on="article",
-            how="left",
+        df_corr = (
+            df_corr.filter(pl.col("margin") < margin / 100)
+            .with_columns(
+                pl.col("article").cast(pl.Utf8).replace(",", "").alias("article"),
+                pl.col("price_eur").round(1).cast(pl.Utf8).replace(".", ","),
+            )
+            .sort("margin", descending=False)
+            .with_columns(
+                pl.col("margin")
+                .map_elements(lambda x: "{:.1f}%".format(x * 100), return_dtype=pl.Utf8)
+                .alias("margin %")
+            )
+            .drop(
+                "price",
+                "country",
+                "date",
+                "hnp",
+                "subcategory",
+                "family",
+                "ancor",
+                "margin",
+            )
         )
-        .with_columns(
-            margin=(1 - pl.col("ancor") / (pl.col("price_eur") / (1 + vat1))).round(4)
-        )
-    )
-    df_corr = (
-        df_corr.filter(pl.col("margin") < margin / 100)
-        .with_columns(
-            pl.col("article").cast(pl.Utf8).replace(",", "").alias("article"),
-            pl.col("price_eur").round(1).cast(pl.Utf8).replace(".", ","),
-        )
-        .sort("margin", descending=False)
-        .with_columns(
-            pl.col("margin")
-            .map_elements(lambda x: "{:.1f}%".format(x * 100), return_dtype=pl.Utf8)
-            .alias("margin %")
-        )
-        .drop(
-            "price",
-            "country",
-            "date",
-            "hnp",
-            "subcategory",
-            "family",
-            "ancor",
-            "margin",
-        )
-    )
 
-    title = f"Products with margin less than {margin}% in {country1} on {date1.strftime('%d.%m.%Y')} (quantity of products: {df_corr.height})"
-    st.markdown(f"##### {title}")
-    st.dataframe(df_corr, hide_index=True, use_container_width=True)
+        title = f"Products with margin less than {margin}% in {country1} on {date1.strftime('%d.%m.%Y')} (quantity of products: {df_corr.height})"
+        st.markdown(f"##### {title}")
+        st.dataframe(df_corr, hide_index=True, use_container_width=True)

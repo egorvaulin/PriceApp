@@ -143,6 +143,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
             on="article",
             how="left",
+            coalesce=True,
         )
         .drop("country")
         .with_columns(
@@ -227,5 +228,5 @@ if authenticate_user():
             values=column2, index="shop", columns="date", aggregate_function="min"
         )
         max_date = pivot_df.columns[-1]
-        pivot_df = pivot_df.sort(by=max_date, descending=False)
-        st.dataframe(pivot_df.head(10), use_container_width=True)
+        pivot_df = pivot_df.sort(by=max_date, descending=False, nulls_last=True)
+        st.dataframe(pivot_df.head(10), use_container_width=True, hide_index=True)

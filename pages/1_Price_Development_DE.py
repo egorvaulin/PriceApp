@@ -70,6 +70,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
             on="article",
             how="left",
+            coalesce=True,
         )
         .drop("country")
     )
@@ -77,7 +78,7 @@ if authenticate_user():
     col1, col2 = st.columns(2)  # Set up 2 columns for user input
     with col1:
         selectbox_options = df_de["product"].unique().sort().to_list()
-        selected_product = st.selectbox("Select an article", selectbox_options, index=0)
+        selected_product = st.selectbox("Select an article", selectbox_options, index=1)
 
     filt1_df = df_de.filter(pl.col("product") == selected_product)
     with col2:

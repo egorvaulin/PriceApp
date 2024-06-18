@@ -175,12 +175,20 @@ if authenticate_user():
     shop_rank_counts_1 = (
         shop_rank_counts.filter(pl.col("shop") == shop1, pl.col("rank").is_not_null())
         .sort("rank")
-        .head(3)
+        .with_columns(
+            pl.col("len").alias("count"),
+        )
+        .select("shop", "rank", "count")
+        .head(4)
     )  # Filter the DataFrame for the first shop
     shop_rank_counts_2 = (
         shop_rank_counts.filter(pl.col("shop") == shop2, pl.col("rank").is_not_null())
         .sort("rank")
-        .head(3)
+        .with_columns(
+            pl.col("len").alias("count"),
+        )
+        .select("shop", "rank", "count")
+        .head(4)
     )  # Filter the DataFrame for the second shop
 
     df_de_sorted1_ranked = (
@@ -197,17 +205,12 @@ if authenticate_user():
     coln1, coln2, coln3 = st.columns([2, 4, 4], gap="large")
     with coln1:
         st.write(f"Rank counts for {shop1}")
-        st.dataframe(
-            shop_rank_counts_1.head(3), hide_index=True, use_container_width=True
-        )
-        st.divider()
+        st.dataframe(shop_rank_counts_1, hide_index=True, use_container_width=True)
         st.write(f"Rank counts for {shop2}")
-        st.dataframe(
-            shop_rank_counts_2.head(3), hide_index=True, use_container_width=True
-        )
+        st.dataframe(shop_rank_counts_2, hide_index=True, use_container_width=True)
 
     with coln2:
-        df_de_sorted1_ranked.with_columns(
+        df_de_sorted1_ranked = df_de_sorted1_ranked.with_columns(
             pl.col("article").map_elements(lambda x: "{:,}".format(x).replace(",", "")),
             pl.col(column2).map_elements(lambda x: "{:,}".format(x).replace(".", ",")),
             (pl.col(column) * 100).map_elements(
