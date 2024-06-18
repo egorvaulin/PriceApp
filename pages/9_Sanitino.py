@@ -93,7 +93,7 @@ if authenticate_user():
         hnp[["article", "hnp", "subcategory", "family", "product"]],
         on="article",
         how="left",
-        coalesce=True,
+        # coalesce=True,
     ).with_columns(pl.col("date").cast(pl.Date))
 
     subcat = df_s["subcategory"].unique().sort().to_list()
