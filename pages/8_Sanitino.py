@@ -50,13 +50,15 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 if authenticate_user():
-    col1, col2, col3 = st.columns([4, 1, 1])
+    col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
     with col1:
         st.markdown("## Sanitino analysis")
     with col2:
         czk = st.number_input("CZK rate:", value=25.5)
     with col3:
         ron = st.number_input("RON rate:", value=4.98)
+    with col4:
+        plz = st.number_input("PLZ rate:", value=4.29)
     st.divider()
 
     @st.cache_data
@@ -67,19 +69,21 @@ if authenticate_user():
             df = pl.read_parquet(buffer)
         return df
 
-    def calculate_price(row, czk, ron):
+    def calculate_price(row, czk, ron, plz):
         if row["country"] == "cz":
             return row["price"] / czk
         elif row["country"] == "ro":
             return row["price"] / ron
+        elif row["country"] == "pl":
+            return row["price"] / plz
         else:
             return row["price"]
 
     df = load_data("./data/Sen.parquet")
     vat = pl.DataFrame(
         {
-            "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es"],
-            "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.20, 0.19, 0.21],
+            "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es", "pl"],
+            "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.20, 0.19, 0.21, 0.23],
         }
     )
     hnp = load_data("./data/hnp24.parquet")
@@ -100,14 +104,10 @@ if authenticate_user():
 
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col1:
-        subcategory = st.selectbox("Select a subcategory", subcat, index=6)
-        df_s = df_s.filter(pl.col("subcategory") == subcategory)
-
-    with col2:
         prod = df_s["product"].unique().sort().to_list()
         product = st.selectbox("Select a product", prod, index=0)
 
-    with col3:
+    with col2:
         date1 = st.date_input(
             "Select a date in a format YYYY/MM/DD",
             df_s["date"].max(),
@@ -117,13 +117,20 @@ if authenticate_user():
         previous_week = date1 - timedelta(weeks=1)
         previous_month = date1 - timedelta(days=30)
 
+    with col3:
+        margin_show = st.checkbox("Show margin", value=False)
+
     df_sp = df_s.filter(pl.col("product") == product).with_columns(
         pl.when(pl.col("country") == "cz")
         .then((pl.col("price") / czk).round(2))
         .otherwise(
             pl.when(pl.col("country") == "ro")
             .then((pl.col("price") / ron).round(2))
-            .otherwise(pl.col("price")),
+            .otherwise(
+                pl.when(pl.col("country") == "pl")
+                .then((pl.col("price") / plz).round(2))
+                .otherwise(pl.col("price")),
+            )
         )
         .alias("price_eur")
     )
@@ -134,7 +141,11 @@ if authenticate_user():
             .otherwise(
                 pl.when(pl.col("country") == "ro")
                 .then((pl.col("price") / ron).round(2))
-                .otherwise(pl.col("price")),
+                .otherwise(
+                    pl.when(pl.col("country") == "pl")
+                    .then((pl.col("price") / plz).round(2))
+                    .otherwise(pl.col("price")),
+                )
             )
             .round(2)
             .alias("price_eur")
@@ -192,8 +203,6 @@ if authenticate_user():
     df_stock = (
         df_spp.filter(pl.col("country") == "de").sort("date").select(["date", "stock"])
     )
-
-    margin_show = st.checkbox("Show margin", value=False)
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=[0.4, 0.6]

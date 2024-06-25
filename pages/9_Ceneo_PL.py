@@ -54,12 +54,6 @@ def decrypt_data(data, key):
     return pt
 
 
-# Page configuration
-st.set_page_config(
-    page_title="Product analysis", layout="wide", initial_sidebar_state="expanded"
-)
-
-
 # Change the font of the entire app
 def set_font(font):
     st.markdown(
