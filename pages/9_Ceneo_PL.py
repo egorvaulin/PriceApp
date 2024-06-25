@@ -2,7 +2,6 @@ import polars as pl
 import streamlit as st
 import plotly.graph_objects as go
 from middleware import authenticate_user
-from datetime import timedelta
 import toml
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
@@ -49,15 +48,65 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 
+def decrypt_data(data, key):
+    cipher = AES.new(key, AES.MODE_CBC, iv=data[:16])
+    pt = unpad(cipher.decrypt(data[16:]), AES.block_size)
+    return pt
+
+
+# Page configuration
+st.set_page_config(
+    page_title="Product analysis", layout="wide", initial_sidebar_state="expanded"
+)
+
+
+# Change the font of the entire app
+def set_font(font):
+    st.markdown(
+        f"""
+                <style>
+                body {{font-family: {font};}}
+                </style>
+                """,
+        unsafe_allow_html=True,
+    )
+
+
+set_font("Arial")
+
+# --- HIDE STREAMLIT STYLE ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
+# if authenticate_user():
+st.markdown("## Analysis of BLANCO prices on Ceneo")
+st.divider()
+
+
+@st.cache_data
+def load_data(path):
+    with open(path, "rb") as f:
+        encrypted_data = f.read()
+        buffer = io.BytesIO(decrypt_data(encrypted_data, key))
+        df = pl.read_parquet(buffer)
+    return df
+
+
 def create_chart(df, title):  # Create a bar chart of the 'price' column
-    smallest_price = df[column2].min()
-    df = df.with_columns(surplus=pl.col(column2) - smallest_price)
+    smallest_price = df["price"].min()
+    df = df.with_columns(surplus=pl.col("price") - smallest_price)
     chart = go.Figure(
         data=[
             go.Bar(
                 x=df["shop"],
                 y=[smallest_price] * len(df),
-                name=column2,
+                name="price",
                 marker_color="#d1d1e8",
             ),
             go.Bar(
@@ -72,7 +121,7 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
             y=[0.1] * len(df),  # Set 'y' to a small number
             mode="text",  # Set the mode to 'text'
             text=[
-                f"{val:.1f}" for val in df[column2]
+                f"{val:.1f}" for val in df["price"]
             ],  # Set the 'text' to the 'price' values
             textposition="top center",  # Position the text at the top of the 'y' position
             textfont=dict(family="Arial", size=14, color="#575757"),
@@ -83,8 +132,8 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
     chart.add_trace(
         go.Scatter(  # Add 'disc1' to the y2 axis with only markers
             x=df["shop"],
-            y=df[column],
-            name=column,
+            y=df["disc1"],
+            name="disc1",
             yaxis="y2",
             mode="markers+text",  # Add 'text' to the mode
             marker=dict(
@@ -94,7 +143,7 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
                 line=dict(width=3),
             ),  # Increase the size of the markers
             text=[
-                f"{val:.1%}" for val in df[column]
+                f"{val:.1%}" for val in df["disc1"]
             ],  # Format 'disc1' as a percentage with 1 decimal place
             textposition="top center",  # Position the text above the markers
             textfont=dict(family="Arial", size=14, color="#575757"),
@@ -105,7 +154,7 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
         title_text=title,
         height=600,
         barmode="stack",
-        yaxis=dict(title=column2, showgrid=False),
+        yaxis=dict(title="price", showgrid=False),
         yaxis2=dict(
             title="",
             overlaying="y",
@@ -113,7 +162,7 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
             showticklabels=False,
             ticks="",
             showgrid=False,
-            range=[0, max(df[column]) + 0.05],
+            range=[0, max(df["disc1"]) + 0.05],
         ),  # Adjust the range for 'y2'
         xaxis=dict(showgrid=False),
         showlegend=False,  # Remove the legend
@@ -122,33 +171,21 @@ def create_chart(df, title):  # Create a bar chart of the 'price' column
 
 
 if authenticate_user():
-    st.markdown("## Product analysis Germany")
-    st.divider()
-
-    @st.cache_data
-    def load_data(path):
-        with open(path, "rb") as f:
-            encrypted_data = f.read()
-            buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-            df = pl.read_parquet(buffer)
-        return df
-
-    df = load_data("./data/Ien.parquet")
-    hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = [col.lower() for col in hnp.columns]
+    df = load_data("./data/Cen.parquet")
+    hnp = load_data("./data/PL.parquet")
+    hnp1 = load_data("./data/hnp24.parquet")
+    hnp1.columns = [col.lower() for col in hnp1.columns]
+    rrp = load_data("./data/rrp.parquet")
 
     df_de = (
-        df.filter(pl.col("country") == "de")
-        .join(
-            hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
+        df.join(
+            hnp,
             on="article",
             how="left",
-            # coalesce=True,
         )
-        .drop("country")
+        .join(hnp1.select("article", "product"), on="article", how="left")
         .with_columns(
             disc1=1 - pl.col("price") / pl.col("hnp"),
-            disc2=1 - pl.col("price_delivery") / pl.col("hnp"),
         )
     )
 
@@ -158,7 +195,7 @@ if authenticate_user():
         product = st.selectbox(
             "Select a product from the list",
             df_de["product"].unique().sort().to_list(),
-            index=1,
+            index=2,
         )
         st.divider()
         date1 = st.date_input(
@@ -166,67 +203,115 @@ if authenticate_user():
             df_de["date"].max(),
             key="date_range1",
         )
-        st.divider()
-        check = st.checkbox("Select prices with delivery", value=False)
-        st.divider()
+    st.divider()
 
     with col2:
         df_de_prod = df_de.filter(pl.col("product") == product)
         df_sel_date = df_de_prod.filter(pl.col("date") == date1)
 
-        column = "disc2" if check else "disc1"
-        column2 = "price_delivery" if check else "price"
-
         graph1 = create_chart(
-            df_sel_date.sort(by=column, descending=True).head(12),
+            df_sel_date.sort(by="disc1", descending=True).head(10),
             f"Shops and prices for {product} with discounts from HNP",
         )
         st.plotly_chart(graph1, use_container_width=True)
 
     st.divider()
 
-    col11, col12 = st.columns([1, 3], gap="large")
+    filt1_df = df_de.filter(pl.col("product") == product)
 
+    col11, col12 = st.columns([1, 4], gap="large")
     with col11:
-        st.markdown(
-            "###### Preselected dates for analysis correspond to previous day, previous week, and previous month. You can use any dates for analysis by selecting the checkbox."
+        multiselect_options = filt1_df["shop"].unique().sort().to_list()
+        # Check if the default values exist in the options
+        default_values = ["elektrohome.pl", "reuter.com", "fregadero.pl"]
+        default_values = [
+            shop for shop in default_values if shop in multiselect_options
+        ][:2]
+        # If no default values exist in the options, choose a different default value
+        if not default_values and len(multiselect_options) > 0:
+            default_values = [multiselect_options[0]]
+        selected_shops = st.multiselect(
+            "Select shops to compare", multiselect_options, default=default_values
         )
-        check_date = st.checkbox(
-            "Select days for analysis", value=False, key="check_days"
+        filtered_df = filt1_df.filter(
+            pl.col("shop").is_in(selected_shops)
+        )  # Filter the data based on selected shops
+        min_price_data = (
+            filt1_df.sort("price")
+            .group_by("date")
+            .agg(
+                pl.col("price").first().alias("min_price"),
+                pl.col("shop").first().alias("min_price_shop"),
+            )
+            .sort("date")
         )
-        date2 = st.date_input(
-            "Select date 1", df_de_prod["date"].max(), key="date_range2"
-        )
-        date3 = st.date_input(
-            "Select date 2", df_de_prod["date"].max(), key="date_range3"
-        )
-        date4 = st.date_input(
-            "Select date 3", df_de_prod["date"].max(), key="date_range4"
-        )
-        date5 = st.date_input(
-            "Select date 4", df_de_prod["date"].max(), key="date_range5"
+        mean_price_data = (
+            filt1_df.group_by("date")
+            .agg(pl.col("price").mean().round(1).alias("mean_price"))
+            .sort("date")
         )
 
     with col12:
-        if not check_date:
-            previous_day = date1 - timedelta(
-                days=1
-            )  # Calculate the previous day, previous week, and previous month dates
-            previous_week = date1 - timedelta(weeks=1)
-            previous_month = date1 - timedelta(days=30)
-        else:
-            date1 = date2
-            previous_day = date3
-            previous_week = date4
-            previous_month = date5
-        # Filter the dataframe for the desired dates
-        filtered_df = df_de_prod.filter(
-            pl.col("date").is_in([date1, previous_day, previous_week, previous_month])
-        ).sort("date", descending=False)
+        # Create a line plot
+        fig = go.Figure()
+        colors_p = [
+            "#7d98a1",
+            "#343499",
+            "#fbe059",
+            "#86d277",
+            "#9fb3ba",
+            "#7676bb",
+            "#fbe572",
+            "#a1dd96",
+        ]  # Add more colors if needed
 
-        pivot_df = filtered_df.pivot(
-            values=column2, index="shop", columns="date", aggregate_function="min"
+        for i, shop in enumerate(selected_shops):
+            shop_data = filtered_df.filter(pl.col("shop") == shop)
+            fig.add_trace(
+                go.Scatter(
+                    x=shop_data["date"].to_list(),
+                    y=shop_data["price"].to_list(),
+                    name=shop,
+                    mode="lines",
+                    line=dict(color=colors_p[i]),
+                )
+            )
+        # Add minimum price line
+        fig.add_trace(
+            go.Scatter(
+                x=min_price_data["date"].to_list(),
+                y=min_price_data["min_price"].to_list(),
+                mode="lines",
+                name="Minimum Price",
+                line=dict(dash="dash", color="#818080"),
+                text=min_price_data[
+                    "min_price_shop"
+                ].to_list(),  # Add shop name as hover text
+                hoverinfo="text+y",
+            )
         )
-        max_date = pivot_df.columns[-1]
-        pivot_df = pivot_df.sort(by=max_date, descending=False, nulls_last=True)
-        st.dataframe(pivot_df.head(10), use_container_width=True, hide_index=True)
+        fig.add_trace(
+            go.Scatter(
+                x=mean_price_data["date"].to_list(),
+                y=mean_price_data["mean_price"].to_list(),
+                mode="lines",
+                name="Mean Price",
+                line=dict(
+                    dash="dash", color="#FF6133"
+                ),  # Choose a different color for the mean price line
+            )
+        )
+        fig.update_layout(
+            xaxis_title=None,
+            yaxis_title="<b>Price</b>",
+            title=f"<b>Price development for {product}</b>",
+            legend=dict(
+                yanchor="top",
+                y=-0.2,  # Position legend below the graph
+                xanchor="center",
+                x=0.5,
+                orientation="h",  # Horizontal orientation
+                font=dict(size=16, color="#343499"),  # Increase font size
+            ),
+        )
+        st.plotly_chart(fig, use_container_width=True)
