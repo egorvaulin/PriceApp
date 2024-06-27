@@ -420,14 +420,18 @@ if authenticate_user():
         with col22:
             vat1 = vat.filter(pl.col("country") == country1)["vat"].to_list()[0]
             df_corr = (
-                df_s.filter(pl.col("country") == "de", pl.col("date") == date1)
+                df_s.filter(pl.col("country") == country1, pl.col("date") == date1)
                 .with_columns(
                     pl.when(pl.col("country") == "cz")
                     .then((pl.col("price") / czk).round(2))
                     .otherwise(
                         pl.when(pl.col("country") == "ro")
                         .then((pl.col("price") / ron).round(2))
-                        .otherwise(pl.col("price")),
+                        .otherwise(
+                            pl.when(pl.col("country") == "pl")
+                            .then((pl.col("price") / plz).round(2))
+                            .otherwise(pl.col("price"))
+                        )
                     )
                     .alias("price_eur")
                 )
