@@ -186,17 +186,32 @@ if authenticate_user():
     st.markdown("###### Select a product for analysis.")
     col1, col2 = st.columns([2, 5], gap="large")
     with col1:
-        product = st.selectbox(
-            "Select a product from the list",
-            df_de["product"].unique().sort().to_list(),
-            index=2,
+        article = st.selectbox(
+            "Select an article from the list",
+            df_de["article"].unique().sort().to_list(),
+            index=1,
         )
+        pr_art = st.checkbox("Select product by product name", value=False)
+
+        if not pr_art:
+            product = df_de.filter(pl.col("article") == article)["product"].head(1)[0]
+            st.success(product)
+        else:
+            product = st.selectbox(
+                "Select a product from the list",
+                df_de["product"].unique().sort().to_list(),
+                index=1,
+            )
+            article1 = df_de.filter(pl.col("product") == product)["article"].head(1)[0]
+            st.success(f"{article1}")
+
         st.divider()
         date1 = st.date_input(
             "Select a date",
             df_de["date"].max(),
             key="date_range1",
         )
+
     st.divider()
 
     with col2:

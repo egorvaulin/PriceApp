@@ -74,13 +74,35 @@ if authenticate_user():
         .drop("country")
     )
 
-    col1, col2 = st.columns(2)  # Set up 2 columns for user input
+    col1, col2, col3, col4 = st.columns(
+        4, gap="medium"
+    )  # Set up 2 columns for user input
     with col1:
-        selectbox_options = df_de["product"].unique().sort().to_list()
-        selected_product = st.selectbox("Select an article", selectbox_options, index=0)
+        selectbox_options_a = df_de["article"].unique().sort().to_list()
+        selected_article = st.selectbox(
+            "Select an article", selectbox_options_a, index=1
+        )
 
-    filt1_df = df_de.filter(pl.col("product") == selected_product)
     with col2:
+        pr_art = st.checkbox("Selection by product name", value=False)
+        if not pr_art:
+            selected_product = df_de.filter(pl.col("article") == selected_article)[
+                "product"
+            ].head(1)[0]
+            st.success(selected_product)
+            filt1_df = df_de.filter(pl.col("article") == selected_article)
+        else:
+            selectbox_options = df_de["product"].unique().sort().to_list()
+            selected_product = st.selectbox(
+                "Select a product", selectbox_options, index=1
+            )
+            article1 = df_de.filter(pl.col("product") == selected_product)[
+                "article"
+            ].head(1)[0]
+            st.success(f"{article1}")
+            filt1_df = df_de.filter(pl.col("product") == selected_product)
+
+    with col3:
         multiselect_options = filt1_df["shop"].unique().sort().to_list()
         # Check if the default values exist in the options
         default_values = ["Amazon", "sanitino.de", "sonono.de"]
@@ -93,8 +115,9 @@ if authenticate_user():
         selected_shops = st.multiselect(
             "Select shops to compare", multiselect_options, default=default_values
         )
+    with col4:
+        with_delivery = st.checkbox("Show prices with delivery", value=False)
 
-    with_delivery = st.checkbox("Show prices with delivery", value=False)
     if with_delivery:
         column = "price_delivery"
     else:

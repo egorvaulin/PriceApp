@@ -100,14 +100,23 @@ if authenticate_user():
         # coalesce=True,
     ).with_columns(pl.col("date").cast(pl.Date))
 
-    subcat = df_s["subcategory"].unique().sort().to_list()
-
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    col1, col2, col3, col4 = st.columns([1, 1.5, 1, 1], gap="large")
     with col1:
-        prod = df_s["product"].unique().sort().to_list()
-        product = st.selectbox("Select a product", prod, index=0)
+        article = st.selectbox(
+            "Select an article", df_s["article"].unique().sort().to_list(), index=1
+        )
 
     with col2:
+        pr_art = st.checkbox("Selection by product name", value=False)
+        if not pr_art:
+            product = df_s.filter(pl.col("article") == article)["product"].head(1)[0]
+            st.success(product)
+        else:
+            prod = df_s["product"].unique().sort().to_list()
+            product = st.selectbox("Select a product", prod, index=1)
+            article1 = df_s.filter(pl.col("product") == product)["article"].head(1)[0]
+            st.success(f"{article1}")
+    with col3:
         date1 = st.date_input(
             "Select a date in a format YYYY/MM/DD",
             df_s["date"].max(),
@@ -117,7 +126,7 @@ if authenticate_user():
         previous_week = date1 - timedelta(weeks=1)
         previous_month = date1 - timedelta(days=30)
 
-    with col3:
+    with col4:
         margin_show = st.checkbox("Show margin", value=False)
 
     df_sp = df_s.filter(pl.col("product") == product).with_columns(
