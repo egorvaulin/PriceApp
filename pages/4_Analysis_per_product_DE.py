@@ -136,6 +136,9 @@ if authenticate_user():
     df = load_data("./data/Ien.parquet")
     hnp = load_data("./data/hnp24.parquet")
     hnp.columns = [col.lower() for col in hnp.columns]
+    hnp = hnp.with_columns(
+        pl.col("article").cast(pl.Int32),
+    )
 
     df_de = (
         df.filter(pl.col("country") == "de")

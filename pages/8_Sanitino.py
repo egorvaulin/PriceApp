@@ -88,8 +88,14 @@ if authenticate_user():
     )
     hnp = load_data("./data/hnp24.parquet")
     hnp.columns = [column.lower() for column in hnp.columns]
+    hnp = hnp.with_columns(
+        pl.col("article").cast(pl.Int32),
+    )
     rrp = load_data("./data/Rrp.parquet")
     rrp.columns = [column.lower() for column in rrp.columns]
+    rrp = rrp.with_columns(
+        pl.col("article").cast(pl.Int32),
+    )
     ancor = rrp.filter(pl.col("country") == "an").drop("country")
     rrp = rrp.filter(pl.col("country") != "an")
 
