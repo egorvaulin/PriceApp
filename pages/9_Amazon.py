@@ -274,7 +274,7 @@ if authenticate_user():
                 font=dict(size=16, color="#343499"),  # Increase font size
             ),
             yaxis=dict(
-                range=[-0.15, 80], showgrid=False
+                range=[-20, 80], showgrid=False
             ),  # Set y-axis range from 0 to 100
             annotations=annotations,  # Add annotations
             height=700,
