@@ -230,7 +230,7 @@ if authenticate_user():
             fig.add_trace(
                 go.Scatter(
                     x=[df_latest["country"][i], df_latest["country"][i]],
-                    y=[0, df_latest["margin"][i] * 100],
+                    y=[-0.15, df_latest["margin"][i] * 100],
                     mode="lines",
                     name="",
                     line=dict(
