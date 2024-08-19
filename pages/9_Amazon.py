@@ -120,7 +120,7 @@ if authenticate_user():
     hnp = load_data("./data/hnp24.parquet")
     hnp.columns = [column.lower() for column in hnp.columns]
     hnp = hnp.with_columns(pl.col("article").cast(pl.Int32))
-    amz = load_data("./data/amz.parquet")
+    amz = load_data("./data/Amz.parquet")
 
     df_s = df.join(
         hnp[["article", "hnp", "subcategory", "family", "product"]],
