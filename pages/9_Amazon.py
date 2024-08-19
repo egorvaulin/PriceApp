@@ -230,7 +230,7 @@ if authenticate_user():
             fig.add_trace(
                 go.Scatter(
                     x=[df_latest["country"][i], df_latest["country"][i]],
-                    y=[-0.15, df_latest["margin"][i] * 100],
+                    y=[0, df_latest["margin"][i] * 100],
                     mode="lines",
                     name="",
                     line=dict(
@@ -274,7 +274,7 @@ if authenticate_user():
                 font=dict(size=16, color="#343499"),  # Increase font size
             ),
             yaxis=dict(
-                range=[0, 100], showgrid=False
+                range=[-0.15, 80], showgrid=False
             ),  # Set y-axis range from 0 to 100
             annotations=annotations,  # Add annotations
             height=700,
