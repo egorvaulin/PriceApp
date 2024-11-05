@@ -100,7 +100,8 @@ if authenticate_user():
     top_de_shops2 = ", ".join(df_de_ld_grouped["shop"].to_list())
 
     last_date_de = df["date"].max().strftime("%d.%m.%Y")
-    shops_de = df_de["shop"].unique().len()
+    shops_de = df_de["shop"].unique()
+    shops_de_num = shops_de.len()
 
     def custom_metric(label, value):
         st.markdown(
@@ -123,8 +124,11 @@ if authenticate_user():
         )
 
     with col2:
-        custom_metric("Quantity of e-traders", shops_de)
+        custom_metric("Quantity of e-traders", shops_de_num)
         custom_metric(
             "Shops with lowest prices with delivery",
             f"<span style='font-size: small;'>{top_de_shops2}</span>",
         )
+    st.divider()
+
+    st.dataframe(shops_de.sort().to_frame(), hide_index=True)
