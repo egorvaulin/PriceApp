@@ -2,6 +2,4 @@
 .env
 .venv
 .streamlit/secrets.toml
-data/Aen.parquet
-data/Ien.parquet
-data/Sen.parquet
+data
