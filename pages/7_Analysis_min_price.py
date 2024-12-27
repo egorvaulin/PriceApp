@@ -95,7 +95,7 @@ if authenticate_user():
     st.markdown("## Analysis per e-traders")
     st.divider()
 
-    col1, col2, col3, col4 = st.columns(4, gap="medium")
+    col1, col2, col3, col4, col5 = st.columns(5, gap="medium")
     with col1:
         shop1 = st.selectbox(
             "Select an e-trader", df_de["shop"].unique().sort().to_list(), index=1
@@ -109,8 +109,14 @@ if authenticate_user():
             step=1.0,
         )
     with col3:
-        disc = st.checkbox("Show for prices with delivery", value=False)
+        rank = st.selectbox(
+            "Ranks to display",
+            options=[1, 2, 3, 4],
+            index=0,
+        )
     with col4:
+        disc = st.checkbox("Show for prices with delivery", value=False)
+    with col5:
         date1 = st.date_input(
             "Select a date",
             df_de["date"].max(),
@@ -132,7 +138,7 @@ if authenticate_user():
         "article"
     )
     df_de_sorted2 = (
-        df_de_sorted.filter(pl.col("article").is_in(art), pl.col("rank") < 3)
+        df_de_sorted.filter(pl.col("article").is_in(art), pl.col("rank") <= rank + 1)
         .select(["article", "shop", "product", column2])
         .sort(by=["article", "shop"], descending=[True, False], nulls_last=True)
     )
@@ -157,18 +163,24 @@ if authenticate_user():
     new_columns_order = fixed_columns + shop_columns
     df_de_sorted22_pivot = df_de_sorted2_pivot.select(new_columns_order)
 
-    df_unpivoted = (
-        (
-            df_de_sorted2_pivot.melt(
-                id_vars=["article", "product", f"{shop1}"],
-                value_name="price",
-                variable_name="shop",
-            )
-            .filter(pl.col("price").is_not_null())
-            .with_columns((pl.col("price") - pl.col(f"{shop1}")).alias("diff"))
+    df_unp = (
+        df_de_sorted2_pivot.melt(
+            id_vars=["article", "product", f"{shop1}"],
+            value_name="price",
+            variable_name="shop",
         )
-        .filter(pl.col("diff") > min_diff)
-        .sort("diff", descending=True)
+        .filter(pl.col("price").is_not_null())
+        .with_columns((pl.col("price") - pl.col(f"{shop1}")).alias("diff"))
+    )
+    df_unp2 = df_unp.with_columns(
+        prmax=pl.col("diff").max().over(["article"]),
+    ).filter(pl.col("diff") >= min_diff)
+    df_unpivoted = (
+        df_unp.join(df_unp2, "article", how="left")
+        .filter(pl.col("prmax").is_not_null())
+        .sort(["prmax", "diff"], descending=[True, False])
+        .select(["article", "product", f"{shop1}", "shop", "price", "diff"])
+        .unique(subset=["article", "shop"], keep="first", maintain_order=True)
     )
     df_unpivoted_rend = df_unpivoted.with_columns(
         pl.col("article").map_elements(lambda x: "{:,}".format(x).replace(",", ""))
