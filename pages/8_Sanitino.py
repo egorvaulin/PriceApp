@@ -115,6 +115,7 @@ if authenticate_user():
         if not pr_art:
             product = df1.filter(pl.col("article") == article)["product"].head(1)[0]
             st.success(product)
+        else:
             product = st.selectbox("Select a product", products, index=1)
             article = df1.filter(pl.col("product") == product)["article"].head(1)[0]
             st.success(f"{article}")
@@ -429,6 +430,7 @@ if authenticate_user():
                         1 - pl.col("ancor") / (pl.col("price_eur") / (1 + vat1))
                     ).round(4)
                 )
+                .unique(subset=["article", "country", "date"])
             )
             df_corr = (
                 df_corr.filter(pl.col("margin") < margin / 100)
