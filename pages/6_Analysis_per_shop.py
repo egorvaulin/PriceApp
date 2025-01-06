@@ -70,27 +70,14 @@ if authenticate_user():
         )
 
     df = load_data("./data/Ien.parquet")
-    hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = [col.lower() for col in hnp.columns]
-    hnp = hnp.with_columns(
-        pl.col("article").cast(pl.Int32),
-    )
+    hnp = load_data("./data/tlp.parquet")
+    hnp = hnp.with_columns(pl.col("article").cast(pl.Int32))
 
     df_de = (
         df.filter(pl.col("country") == "de")
-        .join(
-            hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
-            on="article",
-            how="left",
-            # coalesce=True,
-        )
         .drop("country")
-        .with_columns(
-            disc1=1 - pl.col("price") / pl.col("hnp"),
-            disc2=1 - pl.col("price_delivery") / pl.col("hnp"),
-        )
+        .with_columns(year=pl.col("date").dt.year())
     )
-    subcat = df_de["subcategory"].unique().sort().to_list()
 
     st.markdown("## Analysis per e-traders")
     st.divider()
@@ -113,8 +100,32 @@ if authenticate_user():
             key="date_range1",
         )
 
-    df_de_shop = df_de.filter(pl.col("shop").is_in([shop1, shop2]))
-    df_de = df_de.filter(pl.col("date") == date1)
+    df_de_shop = (
+        df_de.filter(pl.col("shop").is_in([shop1, shop2]))
+        .join(
+            hnp.select(pl.col("article", "year", "price", "family", "product")),
+            on=["article", "year"],
+            how="left",
+            # coalesce=True,
+        )
+        .with_columns(
+            disc1=1 - pl.col("price") / pl.col("price_right"),
+            disc2=1 - pl.col("price_delivery") / pl.col("price_right"),
+        )
+    )
+    df_de = (
+        df_de.filter(pl.col("date") == date1)
+        .join(
+            hnp.select(pl.col("article", "year", "price", "family", "product")),
+            on=["article", "year"],
+            how="left",
+            # coalesce=True,
+        )
+        .with_columns(
+            disc1=1 - pl.col("price") / pl.col("price_right"),
+            disc2=1 - pl.col("price_delivery") / pl.col("price_right"),
+        )
+    )
 
     last_day = date1
     previous_day = date1 - timedelta(days=1)
@@ -215,10 +226,14 @@ if authenticate_user():
 
     with coln2:
         df_de_sorted1_ranked = df_de_sorted1_ranked.with_columns(
-            pl.col("article").map_elements(lambda x: "{:,}".format(x).replace(",", "")),
-            pl.col(column2).map_elements(lambda x: "{:,}".format(x).replace(".", ",")),
+            pl.col("article").map_elements(
+                lambda x: "{:,}".format(x).replace(",", ""), skip_nulls=False
+            ),
+            pl.col(column2).map_elements(
+                lambda x: "{:,}".format(x).replace(".", ","), skip_nulls=False
+            ),
             (pl.col(column) * 100).map_elements(
-                lambda x: "{:.1f}%".format(x).replace(".", ",")
+                lambda x: "{:.1f}%".format(x).replace(".", ","), skip_nulls=False
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
@@ -226,10 +241,14 @@ if authenticate_user():
 
     with coln3:
         df_de_sorted2_ranked = df_de_sorted2_ranked.with_columns(
-            pl.col("article").map_elements(lambda x: "{:,}".format(x).replace(",", "")),
-            pl.col(column2).map_elements(lambda x: "{:,}".format(x).replace(".", ",")),
+            pl.col("article").map_elements(
+                lambda x: "{:,}".format(x).replace(",", ""), skip_nulls=False
+            ),
+            pl.col(column2).map_elements(
+                lambda x: "{:,}".format(x).replace(".", ","), skip_nulls=False
+            ),
             (pl.col(column) * 100).map_elements(
-                lambda x: "{:.1f}%".format(x).replace(".", ",")
+                lambda x: "{:.1f}%".format(x).replace(".", ","), skip_nulls=False
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 1)")

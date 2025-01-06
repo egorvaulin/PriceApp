@@ -80,53 +80,49 @@ if authenticate_user():
             return row["price"]
 
     df = load_data("./data/Sen.parquet")
+    df = df.with_columns(year=pl.col("date").dt.year())
     vat = pl.DataFrame(
         {
             "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es", "pl"],
             "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.20, 0.19, 0.21, 0.23],
         }
     )
-    hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = [column.lower() for column in hnp.columns]
-    hnp = hnp.with_columns(
-        pl.col("article").cast(pl.Int32),
-    )
-    rrp = load_data("./data/Rrp.parquet")
-    rrp.columns = [column.lower() for column in rrp.columns]
-    rrp = rrp.with_columns(
-        pl.col("article").cast(pl.Int32),
-    )
-    ancor = rrp.filter(pl.col("country") == "an").drop("country")
-    rrp = rrp.filter(pl.col("country") != "an")
+    ancor = load_data("./data/an.parquet")
+    ancor = ancor.with_columns(pl.col("article").cast(pl.Int32))
 
-    df_s = df.join(
-        hnp[["article", "hnp", "subcategory", "family", "product"]],
-        on="article",
-        how="left",
-        # coalesce=True,
-    ).with_columns(pl.col("date").cast(pl.Date))
+    df1 = (
+        df.select("article")
+        .unique()
+        .join(
+            ancor,
+            on="article",
+            how="left",
+            # coalesce=True,
+        )
+        .select(["article", "product"])
+        .unique(["article"])
+        .sort("article")
+    )
+    articles = df1["article"].to_list()
+    products = df1["product"].to_list()
 
     col1, col2, col3, col4 = st.columns([1, 1.5, 1, 1], gap="large")
     with col1:
-        article = st.selectbox(
-            "Select an article", df_s["article"].unique().sort().to_list(), index=1
-        )
+        article = st.selectbox("Select an article", articles, index=1)
 
     with col2:
         pr_art = st.checkbox("Selection by product name", value=False)
         if not pr_art:
-            product = df_s.filter(pl.col("article") == article)["product"].head(1)[0]
+            product = df1.filter(pl.col("article") == article)["product"].head(1)[0]
             st.success(product)
-        else:
-            prod = df_s["product"].unique().sort().to_list()
-            product = st.selectbox("Select a product", prod, index=1)
-            article1 = df_s.filter(pl.col("product") == product)["article"].head(1)[0]
-            st.success(f"{article1}")
+            product = st.selectbox("Select a product", products, index=1)
+            article = df1.filter(pl.col("product") == product)["article"].head(1)[0]
+            st.success(f"{article}")
     with col3:
         date1 = st.date_input(
             "Select a date in a format YYYY/MM/DD",
-            df_s["date"].max(),
-            min_value=df_s["date"].min(),
+            df["date"].max(),
+            min_value=df["date"].min(),
         )
         previous_day = date1 - timedelta(days=1)
         previous_week = date1 - timedelta(weeks=1)
@@ -135,22 +131,15 @@ if authenticate_user():
     with col4:
         margin_show = st.checkbox("Show margin", value=False)
 
-    df_sp = df_s.filter(pl.col("product") == product).with_columns(
-        pl.when(pl.col("country") == "cz")
-        .then((pl.col("price") / czk).round(2))
-        .otherwise(
-            pl.when(pl.col("country") == "ro")
-            .then((pl.col("price") / ron).round(2))
-            .otherwise(
-                pl.when(pl.col("country") == "pl")
-                .then((pl.col("price") / plz).round(2))
-                .otherwise(pl.col("price")),
-            )
+    df_sp = (
+        df.filter(pl.col("article") == article)
+        .join(
+            ancor,
+            on=["article", "year"],
+            how="left",
+            # coalesce=True,
         )
-        .alias("price_eur")
-    )
-    rrp = (
-        rrp.with_columns(
+        .with_columns(
             pl.when(pl.col("country") == "cz")
             .then((pl.col("price") / czk).round(2))
             .otherwise(
@@ -162,17 +151,7 @@ if authenticate_user():
                     .otherwise(pl.col("price")),
                 )
             )
-            .round(2)
             .alias("price_eur")
-        )
-        .join(
-            vat,
-            on="country",
-            how="left",
-            #   coalesce=True
-        )
-        .with_columns(
-            (pl.col("price_eur") / (1 + pl.col("vat"))).round(2).alias("price_net")
         )
     )
 
@@ -188,32 +167,22 @@ if authenticate_user():
         )
         .drop("price", "vat")
     )
+
     df_spp = (
         df_sp.filter(
             pl.col("date").is_in([date1, previous_day, previous_week, previous_month])
         )
         .join(
-            ancor[["article", "price"]].rename({"price": "ancor"}),
-            on="article",
+            ancor[["article", "price", "year"]].rename({"price": "ancor"}),
+            on=["article", "year"],
             how="left",
             # coalesce=True,
         )
-        .join(
-            rrp[["article", "country", "price_eur", "price_net"]].rename(
-                {"price_eur": "rrp", "price_net": "rrp_net"}
-            ),
-            on=["country", "article"],
-            how="left",
-            # coalesce=True,
-        )
-        .with_columns(
-            pl.col("rrp").fill_null(pl.col("hnp")),
-            pl.col("rrp_net").fill_null((pl.col("hnp") / 1.19).round(2)),
-        )
+        .unique(subset=["article", "country", "date"])
     )
+
     df_spp = df_spp.with_columns(
         margin=(1 - pl.col("ancor") / pl.col("price_net")).round(4),
-        discount=(1 - pl.col("price_net") / pl.col("rrp_net")).round(4),
     ).sort(["country", "date"])
     df_stock = (
         df_spp.filter(pl.col("country") == "de").sort("date").select(["date", "stock"])
@@ -332,7 +301,6 @@ if authenticate_user():
     df_spd = df_sp.filter(pl.col("date") >= previous_month).sort("date")
     df_stock = df_spd.filter(pl.col("country") == "de").select("date", "stock")
 
-    # countries = df_spd["country"].unique().sort().to_list()
     col11, col12 = st.columns([1, 6])
     with col11:
         try:
@@ -435,7 +403,7 @@ if authenticate_user():
         with col22:
             vat1 = vat.filter(pl.col("country") == country1)["vat"].to_list()[0]
             df_corr = (
-                df_s.filter(pl.col("country") == country1, pl.col("date") == date1)
+                df.filter(pl.col("country") == country1, pl.col("date") == date1)
                 .with_columns(
                     pl.when(pl.col("country") == "cz")
                     .then((pl.col("price") / czk).round(2))
@@ -451,8 +419,8 @@ if authenticate_user():
                     .alias("price_eur")
                 )
                 .join(
-                    ancor[["article", "price"]].rename({"price": "ancor"}),
-                    on="article",
+                    ancor[["article", "price", "year"]].rename({"price": "ancor"}),
+                    on=["article", "year"],
                     how="left",
                     # coalesce=True,
                 )
@@ -477,12 +445,10 @@ if authenticate_user():
                     .alias("margin %")
                 )
                 .drop(
-                    "price",
+                    "price_eur",
                     "country",
                     "date",
-                    "hnp",
-                    "subcategory",
-                    "family",
+                    "year",
                     "ancor",
                     "margin",
                 )

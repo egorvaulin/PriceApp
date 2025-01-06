@@ -134,49 +134,52 @@ if authenticate_user():
         return df
 
     df = load_data("./data/Ien.parquet")
-    hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = [col.lower() for col in hnp.columns]
-    hnp = hnp.with_columns(
-        pl.col("article").cast(pl.Int32),
-    )
+    hnp = load_data("./data/tlp.parquet")
+    hnp = hnp.with_columns(pl.col("article").cast(pl.Int32))
 
     df_de = (
         df.filter(pl.col("country") == "de")
+        .drop("country")
+        .with_columns(year=pl.col("date").dt.year())
+    )
+
+    df1 = (
+        df_de.select(pl.col("article"))
+        .unique()
+        .sort("article")
         .join(
-            hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
+            hnp.select(pl.col("article", "product")),
             on="article",
             how="left",
-            # coalesce=True,
         )
-        .drop("country")
-        .with_columns(
-            disc1=1 - pl.col("price") / pl.col("hnp"),
-            disc2=1 - pl.col("price_delivery") / pl.col("hnp"),
-        )
+        .unique()
+        .sort("article")
     )
+    articles = df1["article"].to_list()
+    products = df1["product"].to_list()
 
     st.markdown("###### Select a product for analysis.")
     col1, col2 = st.columns([2, 5], gap="large")
     with col1:
         article = st.selectbox(
             "Select an article from the list",
-            df_de["article"].unique().sort().to_list(),
+            articles,
             index=1,
         )
 
         pr_art = st.checkbox("Select product by product name", value=False)
 
         if not pr_art:
-            product = df_de.filter(pl.col("article") == article)["product"].head(1)[0]
+            product = df1.filter(pl.col("article") == article)["product"].head(1)[0]
             st.success(product)
         else:
             product = st.selectbox(
                 "Select a product from the list",
-                df_de["product"].unique().sort().to_list(),
+                products,
                 index=1,
             )
-            article1 = df_de.filter(pl.col("product") == product)["article"].head(1)[0]
-            st.success(f"{article1}")
+            article = df_de.filter(pl.col("product") == product)["article"].head(1)[0]
+            st.success(f"{article}")
 
         st.divider()
         date1 = st.date_input(
@@ -188,8 +191,23 @@ if authenticate_user():
         check = st.checkbox("Select prices with delivery", value=False)
         st.divider()
 
+    df_de_prod = (
+        df_de.filter(pl.col("article") == article)
+        .join(
+            hnp.select(
+                pl.col("article", "year", "price", "subcategory", "family", "product")
+            ),
+            on=["article", "year"],
+            how="left",
+            # coalesce=True,
+        )
+        .with_columns(
+            disc1=1 - pl.col("price") / pl.col("price_right"),
+            disc2=1 - pl.col("price_delivery") / pl.col("price_right"),
+        )
+    )
+
     with col2:
-        df_de_prod = df_de.filter(pl.col("product") == product)
         df_sel_date = df_de_prod.filter(pl.col("date") == date1)
 
         column = "disc2" if check else "disc1"

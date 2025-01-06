@@ -60,50 +60,59 @@ if authenticate_user():
         return df
 
     df = load_data("./data/Ien.parquet")
-    hnp = load_data("./data/hnp24.parquet")
-    hnp.columns = [col.lower() for col in hnp.columns]
+    hnp = load_data("./data/tlp.parquet")
     hnp = hnp.with_columns(
         pl.col("article").cast(pl.Int32),
     )
 
     df_de = (
         df.filter(pl.col("country") == "fr")
+        .drop("country")
+        .with_columns(year=pl.col("date").dt.year())
+    )
+
+    df1 = (
+        df_de.select(pl.col("article"))
+        .unique()
+        .sort("article")
         .join(
-            hnp.select(pl.col("article", "hnp", "subcategory", "family", "product")),
+            hnp.select(pl.col("article", "product")),
             on="article",
             how="left",
-            # coalesce=True,
         )
-        .drop("country")
+        .unique()
+        .sort("article")
     )
+    articles = df1["article"].to_list()
+    products = df1["product"].to_list()
 
     col1, col2, col3, col4 = st.columns(
         4, gap="medium"
     )  # Set up 2 columns for user input
     with col1:
-        selectbox_options_a = df_de["article"].unique().sort().to_list()
-        selected_article = st.selectbox(
-            "Select an article", selectbox_options_a, index=1
-        )
+        selected_article = st.selectbox("Select an article", articles, index=1)
 
     with col2:
         pr_art = st.checkbox("Selection by product name", value=False)
         if not pr_art:
-            selected_product = df_de.filter(pl.col("article") == selected_article)[
+            selected_product = df1.filter(pl.col("article") == selected_article)[
                 "product"
             ].head(1)[0]
             st.success(selected_product)
             filt1_df = df_de.filter(pl.col("article") == selected_article)
         else:
-            selectbox_options = df_de["product"].unique().sort().to_list()
-            selected_product = st.selectbox(
-                "Select a product", selectbox_options, index=1
-            )
-            article1 = df_de.filter(pl.col("product") == selected_product)[
+            selected_product = st.selectbox("Select a product", products, index=1)
+            article1 = df1.filter(pl.col("product") == selected_product)[
                 "article"
             ].head(1)[0]
             st.success(f"{article1}")
             filt1_df = df_de.filter(pl.col("product") == selected_product)
+    filt1_df = filt1_df.join(
+        hnp.select(["article", "year", "product", "price", "subcategory"]),
+        on=["article", "year"],
+        how="left",
+        # coalesce=True,
+    )
 
     with col3:
         multiselect_options = filt1_df["shop"].unique().sort().to_list()
@@ -157,7 +166,7 @@ if authenticate_user():
     ]  # Add more colors if needed
 
     for i, shop in enumerate(selected_shops):
-        shop_data = filtered_df.filter(pl.col("shop") == shop)
+        shop_data = filtered_df.filter(pl.col("shop") == shop).sort("date")
         fig.add_trace(
             go.Scatter(
                 x=shop_data["date"].to_list(),
