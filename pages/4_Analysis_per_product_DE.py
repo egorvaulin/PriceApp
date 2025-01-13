@@ -178,7 +178,7 @@ if authenticate_user():
                 products,
                 index=1,
             )
-            article = df_de.filter(pl.col("product") == product)["article"].head(1)[0]
+            article = df1.filter(pl.col("product") == product)["article"].head(1)[0]
             st.success(f"{article}")
 
         st.divider()

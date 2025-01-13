@@ -54,11 +54,11 @@ if authenticate_user():
     with col1:
         st.markdown("## Sanitino analysis")
     with col2:
-        czk = st.number_input("CZK rate:", value=25.5)
+        czk = st.number_input("CZK rate:", value=25.2)
     with col3:
         ron = st.number_input("RON rate:", value=4.98)
     with col4:
-        plz = st.number_input("PLZ rate:", value=4.29)
+        plz = st.number_input("PLZ rate:", value=4.26)
     st.divider()
 
     @st.cache_data
@@ -420,7 +420,7 @@ if authenticate_user():
                     .alias("price_eur")
                 )
                 .join(
-                    ancor[["article", "price", "year"]].rename({"price": "ancor"}),
+                    ancor.rename({"price": "ancor"}),
                     on=["article", "year"],
                     how="left",
                     # coalesce=True,
