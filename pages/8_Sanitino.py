@@ -192,13 +192,22 @@ if authenticate_user():
 
     df_spp = df_spp.with_columns(
         margin=(1 - pl.col("ancor") / pl.col("price_net")).round(4),
+        price_disc=(pl.col("price_eur") * (1 - pl.col("discount") / 100)).round(2),
+        price_net_disc=(pl.col("price_net") * (1 - pl.col("discount") / 100)).round(2),
+    )
+    df_spp = df_spp.with_columns(
+        margin_disc=(1 - pl.col("ancor") / pl.col("price_disc")).round(4),
     ).sort(["country", "date"])
     df_stock = (
         df_spp.filter(pl.col("country") == "de").sort("date").select(["date", "stock"])
     )
 
     fig = make_subplots(
-        rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=[0.4, 0.6]
+        rows=3,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.03,
+        row_heights=[0.4, 0.08, 0.52],
     )
 
     df_latest = df_spp.filter(pl.col("date") == date1).with_columns(
@@ -211,12 +220,19 @@ if authenticate_user():
         )
         .alias("color"),
     )
+    countries = df_latest["country"].unique().sort().to_list()
+    country_map = {country: i for i, country in enumerate(countries)}
+    df_latest = df_latest.with_columns(
+        pl.col("country").map_elements(lambda x: country_map[x]).alias("country_id")
+    )
+    offset = 0.2
+
     if margin_show:
         annotations = []
         for i in range(len(df_latest)):
             annotations.append(
                 dict(
-                    x=df_latest["country"][i],
+                    x=df_latest["country_id"][i],
                     y=df_latest["margin"][i] * 100 + 8,
                     text=f"{df_latest['margin'][i] * 100:.1f}%",
                     showarrow=False,
@@ -225,7 +241,7 @@ if authenticate_user():
             )
             fig.add_trace(
                 go.Scatter(
-                    x=[df_latest["country"][i], df_latest["country"][i]],
+                    x=[df_latest["country_id"][i], df_latest["country_id"][i]],
                     y=[0, df_latest["margin"][i] * 100],
                     mode="lines",
                     name="",
@@ -238,7 +254,7 @@ if authenticate_user():
             )
         fig.add_trace(
             go.Scatter(
-                x=df_latest["country"],
+                x=df_latest["country_id"],
                 y=df_latest["margin"] * 100,
                 mode="markers",
                 name="Ancor+Sanitino margin",
@@ -279,6 +295,23 @@ if authenticate_user():
     else:
         pass
 
+    text_list = []
+    for i in range(len(df_latest)):
+        text = f'<b>{df_latest["discount"][i]/100:.0%}</b> || {df_latest["price_disc"][i]:.1f} €'
+        text_list.append(text)
+
+    text_trace = go.Scatter(
+        x=df_latest["country_id"],
+        y=[0] * len(df_latest),
+        mode="text",
+        text=text_list,
+        textposition="top center",
+        textfont=dict(size=14, color="#343499", family="Arial"),
+        showlegend=False,
+    )
+    fig.add_trace(text_trace, row=2, col=1)
+    fig.update_yaxes(title_text="Discount", visible=False, row=2, col=1)
+
     colors = ["#7d98a1", "#343499", "#9fb3ba", "#7676bb"]
 
     for day, color in zip(df_spp["date"].unique().sort().to_list(), colors):
@@ -297,11 +330,11 @@ if authenticate_user():
                 textposition="auto",  # Position text inside the bars
                 textfont=dict(color="white"),  # Change text color to white
             ),
-            row=2,
+            row=3,
             col=1,
         )
 
-    fig.update_yaxes(title_text="Price EUR", row=2, col=1)
+    fig.update_yaxes(title_text="Price EUR", row=3, col=1)
 
     st.plotly_chart(fig, use_container_width=True)
 
