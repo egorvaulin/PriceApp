@@ -2,4 +2,4 @@
 .env
 .venv
 .streamlit/secrets.toml
-data
+data/
