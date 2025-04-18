@@ -20,7 +20,7 @@ def decrypt_data(data, key):
 
 # Page configuration
 st.set_page_config(
-    page_title="E-trader analysis", layout="wide", initial_sidebar_state="expanded"
+    page_title="E-trader analysis", layout="wide", initial_sidebar_state="collapsed"
 )
 
 
@@ -182,7 +182,11 @@ if authenticate_user():
         .unique(subset=["article", "shop"], keep="first", maintain_order=True)
     )
     df_unpivoted_rend = df_unpivoted.with_columns(
-        pl.col("article").map_elements(lambda x: "{:,}".format(x).replace(",", ""))
+        pl.col("article").map_elements(
+            lambda x: "{:,}".format(x).replace(",", ""),
+            skip_nulls=False,
+            return_dtype=pl.Utf8,
+        ),
     )
 
     st.divider()

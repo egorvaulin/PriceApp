@@ -20,7 +20,7 @@ def decrypt_data(data, key):
 
 # Page configuration
 st.set_page_config(
-    page_title="E-trader analysis", layout="wide", initial_sidebar_state="expanded"
+    page_title="E-trader analysis", layout="wide", initial_sidebar_state="collapsed"
 )
 
 
@@ -106,7 +106,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "year", "price", "family", "product")),
             on=["article", "year"],
             how="left",
-            # coalesce=True,
+            coalesce=True,
         )
         .with_columns(
             disc1=1 - pl.col("price") / pl.col("price_right"),
@@ -119,7 +119,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "year", "price", "family", "product")),
             on=["article", "year"],
             how="left",
-            # coalesce=True,
+            coalesce=True,
         )
         .with_columns(
             disc1=1 - pl.col("price") / pl.col("price_right"),
@@ -227,13 +227,21 @@ if authenticate_user():
     with coln2:
         df_de_sorted1_ranked = df_de_sorted1_ranked.with_columns(
             pl.col("article").map_elements(
-                lambda x: "{:,}".format(x).replace(",", ""), skip_nulls=False
+                lambda x: "{:,}".format(x).replace(",", ""),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
             ),
             pl.col(column2).map_elements(
-                lambda x: "{:,}".format(x).replace(".", ","), skip_nulls=False
+                lambda x: "{:,}".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
             ),
-            (pl.col(column) * 100).map_elements(
-                lambda x: "{:.1f}%".format(x).replace(".", ","), skip_nulls=False
+            (pl.col(column) * 100)
+            .fill_null(0)
+            .map_elements(
+                lambda x: "{:.1f}%".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
@@ -242,13 +250,21 @@ if authenticate_user():
     with coln3:
         df_de_sorted2_ranked = df_de_sorted2_ranked.with_columns(
             pl.col("article").map_elements(
-                lambda x: "{:,}".format(x).replace(",", ""), skip_nulls=False
+                lambda x: "{:,}".format(x).replace(",", ""),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
             ),
             pl.col(column2).map_elements(
-                lambda x: "{:,}".format(x).replace(".", ","), skip_nulls=False
+                lambda x: "{:,}".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
             ),
-            (pl.col(column) * 100).map_elements(
-                lambda x: "{:.1f}%".format(x).replace(".", ","), skip_nulls=False
+            (pl.col(column) * 100)
+            .fill_null(0)
+            .map_elements(
+                lambda x: "{:.1f}%".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 1)")

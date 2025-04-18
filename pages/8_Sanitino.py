@@ -21,7 +21,7 @@ def decrypt_data(data, key):
 
 # Page configuration
 st.set_page_config(
-    page_title="E-trader analysis", layout="wide", initial_sidebar_state="expanded"
+    page_title="E-trader analysis", layout="wide", initial_sidebar_state="collapsed"
 )
 
 
