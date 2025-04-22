@@ -106,7 +106,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "year", "price", "family", "product")),
             on=["article", "year"],
             how="left",
-            coalesce=True,
+            # coalesce=True,
         )
         .with_columns(
             disc1=1 - pl.col("price") / pl.col("price_right"),
@@ -119,7 +119,7 @@ if authenticate_user():
             hnp.select(pl.col("article", "year", "price", "family", "product")),
             on=["article", "year"],
             how="left",
-            coalesce=True,
+            # coalesce=True,
         )
         .with_columns(
             disc1=1 - pl.col("price") / pl.col("price_right"),

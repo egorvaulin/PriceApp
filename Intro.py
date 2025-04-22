@@ -21,7 +21,7 @@ def decrypt_data(data, key):
 st.set_page_config(
     page_title="Price monitoring dashboard",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
