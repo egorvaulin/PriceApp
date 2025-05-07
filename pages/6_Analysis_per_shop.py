@@ -211,8 +211,19 @@ if authenticate_user():
         .select(["article", "product", column2, column])
         .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
     )
+    df_de_sorted12_ranked = (
+        df_de_sorted.filter(pl.col("shop") == shop1, pl.col("rank") == 2)
+        .select(["article", "product", column2, column])
+        .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
+    )
+
     df_de_sorted2_ranked = (
         df_de_sorted.filter(pl.col("shop") == shop2, pl.col("rank") == 1)
+        .select(["article", "product", column2, column])
+        .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
+    )
+    df_de_sorted22_ranked = (
+        df_de_sorted.filter(pl.col("shop") == shop2, pl.col("rank") == 2)
         .select(["article", "product", column2, column])
         .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
     )
@@ -246,6 +257,28 @@ if authenticate_user():
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
         st.dataframe(df_de_sorted1_ranked, hide_index=True, use_container_width=True)
+        st.divider()
+        df_de_sorted12_ranked = df_de_sorted12_ranked.with_columns(
+            pl.col("article").map_elements(
+                lambda x: "{:,}".format(x).replace(",", ""),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
+            ),
+            pl.col(column2).map_elements(
+                lambda x: "{:,}".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
+            ),
+            (pl.col(column) * 100)
+            .fill_null(0)
+            .map_elements(
+                lambda x: "{:.1f}%".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
+            ),
+        )
+        st.write(f"Products with lowest prices for {shop1} (rank = 2)")
+        st.dataframe(df_de_sorted12_ranked, hide_index=True, use_container_width=True)
 
     with coln3:
         df_de_sorted2_ranked = df_de_sorted2_ranked.with_columns(
@@ -269,6 +302,28 @@ if authenticate_user():
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 1)")
         st.dataframe(df_de_sorted2_ranked, hide_index=True, use_container_width=True)
+        st.divider()
+        df_de_sorted22_ranked = df_de_sorted22_ranked.with_columns(
+            pl.col("article").map_elements(
+                lambda x: "{:,}".format(x).replace(",", ""),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
+            ),
+            pl.col(column2).map_elements(
+                lambda x: "{:,}".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
+            ),
+            (pl.col(column) * 100)
+            .fill_null(0)
+            .map_elements(
+                lambda x: "{:.1f}%".format(x).replace(".", ","),
+                skip_nulls=False,
+                return_dtype=pl.Utf8,
+            ),
+        )
+        st.write(f"Products with lowest prices for {shop2} (rank = 2)")
+        st.dataframe(df_de_sorted22_ranked, hide_index=True, use_container_width=True)
 
     st.divider()
 
