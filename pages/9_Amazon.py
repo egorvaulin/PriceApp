@@ -322,7 +322,7 @@ if authenticate_user():
 
     fig.update_yaxes(title_text="Price EUR", row=2, col=1)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     st.divider()
 
     if margin_show:
@@ -403,6 +403,6 @@ if authenticate_user():
 
             title = f"Products with margin less than {margin}% in {country1} on {date1.strftime('%d.%m.%Y')} (quantity of products: {df_corr.height})"
             st.markdown(f"##### {title}")
-            st.dataframe(df_corr, hide_index=True, use_container_width=True)
+            st.dataframe(df_corr, hide_index=True, width='stretch')
     else:
         pass

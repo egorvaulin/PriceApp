@@ -133,8 +133,10 @@ if authenticate_user():
         pl.col(column2).rank("min").over(["date", "article"]).alias("rank")
     )
 
-    art = df_de_sorted.filter(pl.col("shop") == shop1, pl.col("rank") == 1).select(
-        "article"
+    art = (
+        df_de_sorted.filter(pl.col("shop") == shop1, pl.col("rank") == 1)
+        .get_column("article")
+        .to_list()
     )
     df_de_sorted2 = (
         df_de_sorted.filter(pl.col("article").is_in(art), pl.col("rank") <= rank + 1)
@@ -191,6 +193,6 @@ if authenticate_user():
 
     st.divider()
     try:
-        st.dataframe(df_unpivoted_rend, hide_index=True, use_container_width=True)
+        st.dataframe(df_unpivoted_rend, hide_index=True, width='stretch')
     except:
         st.write("No data to display")

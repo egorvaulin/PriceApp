@@ -149,11 +149,14 @@ if authenticate_user():
             )
         )
 
+        # Ensure there are enough columns to perform the analysis
+        if len(pivot_df.columns) < 5:
+            # Not enough columns for month/week/day/last comparisons
+            return [0, 0, 0, 0, 0, 0, pivot_df]
+
         last_column_name = pivot_df.columns[-1]
 
-        for col_name in pivot_df.columns[
-            1:-1
-        ]:  # Exclude the first ('product') and the last column
+        for col_name in pivot_df.columns[1:-1]:  # Exclude the first ('product') and the last column
             pivot_df = pivot_df.with_columns(
                 (pl.col(col_name) - pl.col(last_column_name)).alias(col_name)
             )
@@ -231,9 +234,9 @@ if authenticate_user():
     coln1, coln2, coln3 = st.columns([2, 4, 4], gap="large")
     with coln1:
         st.write(f"Rank counts for {shop1}")
-        st.dataframe(shop_rank_counts_1, hide_index=True, use_container_width=True)
+        st.dataframe(shop_rank_counts_1, hide_index=True, width='stretch')
         st.write(f"Rank counts for {shop2}")
-        st.dataframe(shop_rank_counts_2, hide_index=True, use_container_width=True)
+        st.dataframe(shop_rank_counts_2, hide_index=True, width='stretch')
 
     with coln2:
         df_de_sorted1_ranked = df_de_sorted1_ranked.with_columns(
@@ -256,7 +259,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
-        st.dataframe(df_de_sorted1_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted1_ranked, hide_index=True, width='stretch')
         st.divider()
         df_de_sorted12_ranked = df_de_sorted12_ranked.with_columns(
             pl.col("article").map_elements(
@@ -278,7 +281,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 2)")
-        st.dataframe(df_de_sorted12_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted12_ranked, hide_index=True, width='stretch')
 
     with coln3:
         df_de_sorted2_ranked = df_de_sorted2_ranked.with_columns(
@@ -301,7 +304,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 1)")
-        st.dataframe(df_de_sorted2_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted2_ranked, hide_index=True, width='stretch')
         st.divider()
         df_de_sorted22_ranked = df_de_sorted22_ranked.with_columns(
             pl.col("article").map_elements(
@@ -323,7 +326,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 2)")
-        st.dataframe(df_de_sorted22_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted22_ranked, hide_index=True, width='stretch')
 
     st.divider()
 
@@ -360,7 +363,7 @@ if authenticate_user():
             font=dict(size=16, color="#343499"),  # Increase font size
         ),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     st.divider()
 
     col11, col12, col13, col14, col15, col16, col17 = st.columns([2, 2, 2, 1, 2, 2, 2])

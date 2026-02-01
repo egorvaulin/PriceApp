@@ -223,7 +223,7 @@ if authenticate_user():
     countries = df_latest["country"].unique().sort().to_list()
     country_map = {country: i for i, country in enumerate(countries)}
     df_latest = df_latest.with_columns(
-        pl.col("country").map_elements(lambda x: country_map[x]).alias("country_id")
+        pl.col("country").replace_strict(country_map).alias("country_id")
     )
     offset = 0.2
 
@@ -336,7 +336,7 @@ if authenticate_user():
 
     fig.update_yaxes(title_text="Price EUR", row=3, col=1)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.divider()
 
@@ -423,7 +423,7 @@ if authenticate_user():
         fig_stock.update_yaxes(
             title_text="Price by country and stock quantity over Time", row=2, col=1
         )
-        st.plotly_chart(fig_stock, use_container_width=True)
+        st.plotly_chart(fig_stock, width='stretch')
 
     st.divider()
     if margin_show:
@@ -503,6 +503,6 @@ if authenticate_user():
 
             title = f"Products with margin less than {margin}% in {country1} on {date1.strftime('%d.%m.%Y')} (quantity of products: {df_corr.height})"
             st.markdown(f"##### {title}")
-            st.dataframe(df_corr, hide_index=True, use_container_width=True)
+            st.dataframe(df_corr, hide_index=True, width='stretch')
     else:
         pass

@@ -216,7 +216,7 @@ if authenticate_user():
             df_sel_date.sort(by=column, descending=True).head(12),
             f"Shops and prices for {product} with discounts from HNP",
         )
-        st.plotly_chart(graph1, use_container_width=True)
+        st.plotly_chart(graph1, width='stretch')
 
     st.divider()
 
@@ -264,4 +264,4 @@ if authenticate_user():
         )
         max_date = pivot_df.columns[-1]
         pivot_df = pivot_df.sort(by=max_date, descending=False, nulls_last=True)
-        st.dataframe(pivot_df.head(10), use_container_width=True, hide_index=True)
+        st.dataframe(pivot_df.head(10), width='stretch', hide_index=True)

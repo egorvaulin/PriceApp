@@ -214,4 +214,4 @@ if authenticate_user():
             font=dict(size=16, color="#343499"),  # Increase font size
         ),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
