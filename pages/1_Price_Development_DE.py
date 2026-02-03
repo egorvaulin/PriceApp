@@ -61,9 +61,11 @@ if authenticate_user():
         return df
 
     df = load_data("./data/Ien.parquet")
+    df = df.with_columns(pl.col("year").cast(pl.Int32))
     hnp = load_data("./data/tlp.parquet")
     hnp = hnp.with_columns(
         pl.col("article").cast(pl.Int32),
+        pl.col("year").cast(pl.Int32)
     )
 
     df_de = (
