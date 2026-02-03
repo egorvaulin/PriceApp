@@ -235,9 +235,9 @@ if authenticate_user():
     coln1, coln2, coln3 = st.columns([2, 4, 4], gap="large")
     with coln1:
         st.write(f"Rank counts for {shop1}")
-        st.dataframe(shop_rank_counts_1, hide_index=True, width='stretch')
+        st.dataframe(shop_rank_counts_1, hide_index=True, use_container_width=True)
         st.write(f"Rank counts for {shop2}")
-        st.dataframe(shop_rank_counts_2, hide_index=True, width='stretch')
+        st.dataframe(shop_rank_counts_2, hide_index=True, use_container_width=True)
 
     with coln2:
         df_de_sorted1_ranked = df_de_sorted1_ranked.with_columns(
@@ -260,7 +260,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
-        st.dataframe(df_de_sorted1_ranked, hide_index=True, width='stretch')
+        st.dataframe(df_de_sorted1_ranked, hide_index=True, use_container_width=True)
         st.divider()
         df_de_sorted12_ranked = df_de_sorted12_ranked.with_columns(
             pl.col("article").map_elements(
@@ -282,7 +282,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 2)")
-        st.dataframe(df_de_sorted12_ranked, hide_index=True, width='stretch')
+        st.dataframe(df_de_sorted12_ranked, hide_index=True, use_container_width=True)
 
     with coln3:
         df_de_sorted2_ranked = df_de_sorted2_ranked.with_columns(
@@ -305,7 +305,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 1)")
-        st.dataframe(df_de_sorted2_ranked, hide_index=True, width='stretch')
+        st.dataframe(df_de_sorted2_ranked, hide_index=True, use_container_width=True)
         st.divider()
         df_de_sorted22_ranked = df_de_sorted22_ranked.with_columns(
             pl.col("article").map_elements(
@@ -327,7 +327,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 2)")
-        st.dataframe(df_de_sorted22_ranked, hide_index=True, width='stretch')
+        st.dataframe(df_de_sorted22_ranked, hide_index=True, use_container_width=True)
 
     st.divider()
 
@@ -364,7 +364,7 @@ if authenticate_user():
             font=dict(size=16, color="#343499"),  # Increase font size
         ),
     )
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
     st.divider()
 
     col11, col12, col13, col14, col15, col16, col17 = st.columns([2, 2, 2, 1, 2, 2, 2])
