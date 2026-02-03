@@ -147,7 +147,7 @@ if authenticate_user():
     df_de_sorted2_pivot = df_de_sorted2.pivot(
         values=column2,
         index=["article", "product"],
-        columns="shop",
+        on="shop",
         aggregate_function="first",
     )
 
@@ -165,8 +165,8 @@ if authenticate_user():
     df_de_sorted22_pivot = df_de_sorted2_pivot.select(new_columns_order)
 
     df_unp = (
-        df_de_sorted2_pivot.melt(
-            id_vars=["article", "product", f"{shop1}"],
+        df_de_sorted22_pivot.unpivot(
+            index=["article", "product", f"{shop1}"],
             value_name="price",
             variable_name="shop",
         )

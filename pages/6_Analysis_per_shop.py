@@ -144,7 +144,7 @@ if authenticate_user():
             .pivot(
                 values=column2,
                 index="product",
-                columns="date",
+                on="date",
                 aggregate_function="first",
             )
         )
