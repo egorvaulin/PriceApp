@@ -148,7 +148,7 @@ if authenticate_user():
     df_de_sorted2_pivot = df_de_sorted2.pivot(
         values=column2,
         index=["article", "product"],
-        on="shop",
+        columns="shop",
         aggregate_function="first",
     )
 
