@@ -50,7 +50,7 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 if authenticate_user():
-    col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
+    col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 1, 1, 1, 1, 1, 1])
     with col1:
         st.markdown("## Sanitino analysis")
     with col2:
@@ -61,6 +61,10 @@ if authenticate_user():
         plz = st.number_input("PLZ rate:", value=4.26)
     with col5:
         huf = st.number_input("HUF rate:", value=410.0)
+    with col6:
+        dkk = st.number_input("DKK rate:", value=7.5)
+    with col7:
+        sek = st.number_input("SEK rate:", value=10.7)
     st.divider()
 
     @st.cache_data
@@ -80,6 +84,10 @@ if authenticate_user():
             return row["price"] / plz
         elif row["country"] == "hu":
             return row["price"] / huf
+        elif row["country"] == "dk":
+            return row["price"] / dkk
+        elif row["country"] == "se":
+            return row["price"] / sek
         else:
             return row["price"]
 
@@ -87,8 +95,8 @@ if authenticate_user():
     df = df.with_columns(year=pl.col("date").dt.year())
     vat = pl.DataFrame(
         {
-            "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es", "pl", "hu"],
-            "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.23, 0.19, 0.21, 0.23, 0.27],
+            "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es", "pl", "hu", "dk", "se"],
+            "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.23, 0.19, 0.21, 0.23, 0.27, 0.25, 0.25],
         }
     )
     ancor = load_data("./data/an.parquet")
@@ -156,7 +164,15 @@ if authenticate_user():
                     .otherwise(
                         pl.when(pl.col("country") == "hu")
                         .then((pl.col("price") / huf).round(2))
-                        .otherwise(pl.col("price")),
+                        .otherwise(
+                            pl.when(pl.col("country") == "dk")
+                            .then((pl.col("price") / dkk).round(2))
+                            .otherwise(
+                                pl.when(pl.col("country") == "se")
+                                .then((pl.col("price") / sek).round(2))
+                                .otherwise(pl.col("price"))
+                            )
+                        )
                     )
                 )
             )
