@@ -246,28 +246,29 @@ if authenticate_user():
     if margin_show:
         annotations = []
         for i in range(len(df_latest)):
-            annotations.append(
-                dict(
-                    x=df_latest["country_id"][i],
-                    y=df_latest["margin"][i] * 100 + 8,
-                    text=f"{df_latest['margin'][i] * 100:.1f}%",
-                    showarrow=False,
-                    font=dict(size=14, color=df_latest["color"][i]),
+            if df_latest["margin"][i] is not None:
+                annotations.append(
+                    dict(
+                        x=df_latest["country_id"][i],
+                        y=df_latest["margin"][i] * 100 + 8,
+                        text=f"{df_latest['margin'][i] * 100:.1f}%",
+                        showarrow=False,
+                        font=dict(size=14, color=df_latest["color"][i]),
+                    )
                 )
-            )
-            fig.add_trace(
-                go.Scatter(
-                    x=[df_latest["country_id"][i], df_latest["country_id"][i]],
-                    y=[0, df_latest["margin"][i] * 100],
-                    mode="lines",
-                    name="",
-                    line=dict(
-                        color=df_latest["color"][i],
-                        width=3,
-                    ),
-                    showlegend=False,
+                fig.add_trace(
+                    go.Scatter(
+                        x=[df_latest["country_id"][i], df_latest["country_id"][i]],
+                        y=[0, df_latest["margin"][i] * 100],
+                        mode="lines",
+                        name="",
+                        line=dict(
+                            color=df_latest["color"][i],
+                            width=3,
+                        ),
+                        showlegend=False,
+                    )
                 )
-            )
         fig.add_trace(
             go.Scatter(
                 x=df_latest["country_id"],
