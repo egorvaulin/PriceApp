@@ -42,9 +42,8 @@ set_font("Arial")
 # --- HIDE STREAMLIT STYLE ---
 hide_st_style = """
             <style>
-            #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
-            header {visibility: hidden;}
+            button[kind="header"] {display: none;}
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -95,13 +94,13 @@ if authenticate_user():
     df = df.with_columns(year=pl.col("date").dt.year())
     vat = pl.DataFrame(
         {
-            "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es", "pl", "hu", "dk", "se"],
-            "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.23, 0.19, 0.21, 0.23, 0.27, 0.25, 0.25],
+            "country": ["de", "be", "cz", "fr", "it", "sk", "ro", "es", "pl", "hu", "dk", "se", "fi"],
+            "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.23, 0.19, 0.21, 0.23, 0.27, 0.25, 0.25, 0.255],
         }
     )
     ancor = load_data("./data/an.parquet")
     ancor = ancor.with_columns(pl.col("article").cast(pl.Int32))
-
+    
     df1 = (
         df.select("article")
         .unique()
@@ -109,7 +108,7 @@ if authenticate_user():
             ancor,
             on="article",
             how="left",
-            # coalesce=True,
+            coalesce=True,
         )
         .select(["article", "product"])
         .unique(["article"])
@@ -150,7 +149,7 @@ if authenticate_user():
             ancor,
             on=["article", "year"],
             how="left",
-            # coalesce=True,
+            coalesce=True,
         )
         .with_columns(
             pl.when(pl.col("country") == "cz")
