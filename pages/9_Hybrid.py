@@ -49,7 +49,7 @@ hide_st_style = """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
 if authenticate_user():
-    st.markdown("## Hybrid Analysis - Product Pricing Metrics")
+    st.markdown("## Analysis - Product Pricing Metrics")
     st.divider()
 
     @st.cache_data
@@ -67,7 +67,6 @@ if authenticate_user():
         pl.col("article").cast(pl.Int32),
         pl.col("year").cast(pl.Int32)
     )
-    check = load_data("./data/checklist.parquet")
 
     # Filter German data
     df_de = (
@@ -76,17 +75,191 @@ if authenticate_user():
         .with_columns(year=pl.col("date").dt.year())
     )
 
-    # Get products from checklist and join with product names
-    selected_articles = (
-        check.select(pl.col("article"))
-        .unique()
-        .join(
+    # Get all unique products and shops from df_de
+    all_products = df_de.select(pl.col("article")).unique().join(
+        hnp.select(pl.col("article", "product")).unique(),
+        on="article",
+        how="left"
+    ).sort("product")["product"].to_list()
+    all_products = [p for p in all_products if p is not None]
+    
+    all_shops = df_de.select(pl.col("shop")).unique().sort("shop")["shop"].to_list()
+    all_shops = [s for s in all_shops if s is not None]
+    
+    # Heatmap section
+    st.markdown("## Heatmap - Product / Customer Price Deviation")
+    st.divider()
+    
+    # Product and shop selection for heatmap
+    heatmap_col1, heatmap_col2, heatmap_col3 = st.columns([2, 2, 2], gap="medium")
+    
+    with heatmap_col1:
+        selected_products = st.multiselect(
+            "Select products (max 15)", 
+            all_products,
+            max_selections=15,
+            key="products_select"
+        )
+    
+    with heatmap_col2:
+        selected_shops = st.multiselect(
+            "Select shops (max 10)", 
+            all_shops,
+            max_selections=10,
+            key="shops_select"
+        )
+    
+    with heatmap_col3:
+        heatmap_period = st.selectbox("Select comparison range", 
+                                      ["Last 90 days", "Last 10 days", "Last day"])
+    
+    # Check if selections are made
+    if not selected_products or not selected_shops:
+        st.info("Please select at least one product and one shop to display the heatmap.")
+    else:
+        # Prepare heatmap data
+        heatmap_results = []
+        
+        # Get selected articles mapping
+        selected_articles_data = df_de.select(pl.col("article")).unique().join(
             hnp.select(pl.col("article", "product")).unique(),
             on="article",
             how="left"
         )
-    )
+        
+        for row in selected_articles_data.iter_rows(named=True):
+            article = row["article"]
+            product = row["product"]
+            
+            # Skip if product not selected
+            if product not in selected_products:
+                continue
+            
+            product_data = df_de.filter(pl.col("article") == article)
+            
+            if product_data.is_empty():
+                continue
+            
+            # Q4 2025 baseline
+            q4_data = product_data.filter(
+                (pl.col("date") >= pl.datetime(2025, 10, 1)) & 
+                (pl.col("date") <= pl.datetime(2025, 12, 31))
+            )
+            q4_avg = q4_data.select(pl.col("price").mean())[0, 0] if not q4_data.is_empty() else None
+            
+            if q4_avg is None or q4_avg == 0:
+                continue
+            
+            # Determine date range for comparison
+            max_date_prod = product_data.select(pl.col("date").max())[0, 0]
+            
+            if heatmap_period == "Last 90 days":
+                comparison_start = max_date_prod - timedelta(days=90)
+            elif heatmap_period == "Last 10 days":
+                comparison_start = max_date_prod - timedelta(days=10)
+            else:  # Last day
+                comparison_start = max_date_prod
+            
+            comparison_data = product_data.filter(pl.col("date") >= comparison_start)
+            
+            row_data = {"Product": product}
+            
+            # Calculate deviation for each selected customer
+            for customer in selected_shops:
+                customer_data = comparison_data.filter(pl.col("shop") == customer)
+                
+                if customer_data.is_empty():
+                    row_data[customer] = None
+                else:
+                    customer_avg = customer_data.select(pl.col("price").mean())[0, 0]
+                    deviation = ((customer_avg - q4_avg) / q4_avg) * 100
+                    row_data[customer] = deviation
+            
+            heatmap_results.append(row_data)
+        
+        # Convert to pandas for heatmap styling
+        heatmap_df = pd.DataFrame(heatmap_results)
+        
+        # Fill NaN values with empty strings for display
+        display_heatmap = heatmap_df.fillna("")
+        
+        # Reorder columns: keep Product first, move columns with most empty values to the right
+        product_col = display_heatmap["Product"]
+        data_cols = display_heatmap.drop("Product", axis=1)
+        
+        # Count non-empty values per column
+        non_empty_counts = (data_cols != "").sum()
+        sorted_cols = non_empty_counts.sort_values(ascending=False).index.tolist()
+        
+        # Reorder dataframe
+        display_heatmap = display_heatmap[["Product"] + sorted_cols]
+        
+        # Function for gradient color heatmap
+        def color_heatmap_gradient(val):
+            if val == "":
+                return "background-color: white; color: black;"
+            
+            # Convert to float for color calculation
+            try:
+                num_val = float(str(val).replace("%", ""))
+            except:
+                return "background-color: white; color: black;"
+            
+            # Gradient colors
+            if num_val < 0:
+                # Red gradient: -30% = dark red, 0% = bright red
+                intensity = max(0, min(1, (num_val + 30) / 30))
+                rgb = (255, int(107 * intensity), int(107 * intensity))
+            elif num_val < 3.0:
+                # Red to Orange: 0% = red, 3% = orange
+                progress = num_val / 3.0
+                r = 255
+                g = int(107 + (165 - 107) * progress)
+                b = int(107 + (0 - 107) * progress)
+                rgb = (r, g, b)
+            elif num_val < 10.0:
+                # Orange to Green: 3% = orange, 10% = green
+                progress = (num_val - 3.0) / 7.0
+                r = int(255 - (255 - 81) * progress)
+                g = int(165 + (95 - 165) * progress)
+                b = int(0 + (102 - 0) * progress)
+                rgb = (r, g, b)
+            else:
+                # Green gradient: 10% = bright green, 30% = dark green
+                intensity = min(1, (num_val - 10) / 20)
+                rgb = (81 - int(81 * intensity), 207 - int(102 * intensity), 102)
+            
+            return f"background-color: rgb({int(rgb[0])}, {int(rgb[1])}, {int(rgb[2])}); color: white;"
+        
+        # Function to format heatmap values
+        def format_heatmap_value(val):
+            if val == "":
+                return ""
+            if isinstance(val, float):
+                return f"{val:.2f}%"
+            return val
+        
+        # Apply styling
+        styled_heatmap = display_heatmap.style.map(
+            color_heatmap_gradient,
+            subset=[col for col in display_heatmap.columns if col != "Product"]
+        ).format({
+            col: format_heatmap_value for col in display_heatmap.columns if col != "Product"
+        }).set_properties(**{'width': '40px !important', 'min-width': '40px', 'max-width': '40px', 'text-align': 'center'}, subset=[col for col in display_heatmap.columns if col != "Product"]
+        ).set_properties(**{'width': '120px !important', 'min-width': '120px', 'max-width': '120px', 'text-align': 'left'}, subset=['Product']
+        ).set_table_styles([
+            {'selector': 'th', 'props': [('text-align', 'center'), ('width', '40px !important'), ('min-width', '40px'), ('max-width', '40px'), ('overflow', 'hidden'), ('white-space', 'nowrap')]},
+            {'selector': 'td', 'props': [('width', '40px !important'), ('min-width', '40px'), ('max-width', '40px'), ('overflow', 'hidden'), ('text-overflow', 'ellipsis'), ('white-space', 'nowrap')]},
+            {'selector': 'th:first-child', 'props': [('width', '120px !important'), ('min-width', '120px'), ('max-width', '120px')]},
+            {'selector': 'td:first-child', 'props': [('width', '120px !important'), ('min-width', '120px'), ('max-width', '120px')]},
+        ])
+        
+        st.dataframe(styled_heatmap, width='stretch', hide_index=True)
 
+    st.divider()
+    st.markdown("## Prices by Shop")
+    st.divider()
+    
     # Shop selection
     col1, col2 = st.columns([2, 2], gap="medium")
     
@@ -98,7 +271,7 @@ if authenticate_user():
     with col2:
         price_type = st.selectbox("Price column", ["price", "price_delivery"])
 
-    # Filter data for selected shop
+    st.divider()
     shop_data = df_de.filter(pl.col("shop") == selected_shop).join(
         hnp.select(["article", "year", "product", "subcategory"]),
         on=["article", "year"],
@@ -108,11 +281,22 @@ if authenticate_user():
     # Get the max date in the dataset
     max_date = shop_data.select(pl.col("date").max())[0, 0]
 
-    # Define date ranges
+    # Get date ranges
     q4_2025_start = pl.datetime(2025, 10, 1)
     q4_2025_end = pl.datetime(2025, 12, 31)
     last_90_days_start = max_date - timedelta(days=90)
     last_10_days_start = max_date - timedelta(days=10)
+
+    # Get all articles with product names
+    selected_articles = (
+        df_de.select(pl.col("article"))
+        .unique()
+        .join(
+            hnp.select(pl.col("article", "product")).unique(),
+            on="article",
+            how="left"
+        )
+    )
 
     # Build results table
     results = []
@@ -170,7 +354,7 @@ if authenticate_user():
 
     # Display results table
     st.divider()
-    st.markdown(f"### Price Metrics for {selected_shop} (Price column: {price_type})")
+    st.markdown(f"### {selected_shop} - Selected Metrics (Price type: {price_type})")
     
     # Convert to pandas for styling
     results_df = pd.DataFrame(results)
@@ -219,138 +403,3 @@ if authenticate_user():
     })
     
     st.dataframe(styled_df, width='stretch', hide_index=True)
-
-    st.divider()
-
-    df_cust = load_data("./data/cust.parquet")
-    
-    # Get customer/shop list
-    customers = df_cust.select(pl.col("E-traider")).unique()["E-traider"].to_list()
-    
-    # Heatmap section
-    st.markdown("## Heatmap - Product vs Customer Price Deviation")
-    st.divider()
-    
-    # Selection for comparison period
-    heatmap_period = st.selectbox("Select comparison range", 
-                                  ["Last 90 days", "Last 10 days", "Last day"])
-    
-    # Prepare heatmap data
-    heatmap_results = []
-    
-    for row in selected_articles.iter_rows(named=True):
-        article = row["article"]
-        product = row["product"]
-        product_data = df_de.filter(pl.col("article") == article)
-        
-        if product_data.is_empty():
-            continue
-        
-        # Q4 2025 baseline
-        q4_data = product_data.filter(
-            (pl.col("date") >= pl.datetime(2025, 10, 1)) & 
-            (pl.col("date") <= pl.datetime(2025, 12, 31))
-        )
-        q4_avg = q4_data.select(pl.col("price").mean())[0, 0] if not q4_data.is_empty() else None
-        
-        if q4_avg is None or q4_avg == 0:
-            continue
-        
-        # Determine date range for comparison
-        max_date_prod = product_data.select(pl.col("date").max())[0, 0]
-        
-        if heatmap_period == "Last 90 days":
-            comparison_start = max_date_prod - timedelta(days=90)
-        elif heatmap_period == "Last 10 days":
-            comparison_start = max_date_prod - timedelta(days=10)
-        else:  # Last day
-            comparison_start = max_date_prod
-        
-        comparison_data = product_data.filter(pl.col("date") >= comparison_start)
-        
-        row_data = {"Product": product}
-        
-        # Calculate deviation for each customer
-        for customer in customers:
-            customer_data = comparison_data.filter(pl.col("shop") == customer)
-            
-            if customer_data.is_empty():
-                row_data[customer] = None
-            else:
-                customer_avg = customer_data.select(pl.col("price").mean())[0, 0]
-                deviation = ((customer_avg - q4_avg) / q4_avg) * 100
-                row_data[customer] = deviation
-        
-        heatmap_results.append(row_data)
-    
-    # Convert to pandas for heatmap styling
-    heatmap_df = pd.DataFrame(heatmap_results)
-    
-    # Fill NaN values with empty strings for display
-    display_heatmap = heatmap_df.fillna("")
-    
-    # Reorder columns: keep Product first, move columns with most empty values to the right
-    product_col = display_heatmap["Product"]
-    data_cols = display_heatmap.drop("Product", axis=1)
-    
-    # Count non-empty values per column
-    non_empty_counts = (data_cols != "").sum()
-    sorted_cols = non_empty_counts.sort_values(ascending=False).index.tolist()
-    
-    # Reorder dataframe
-    display_heatmap = display_heatmap[["Product"] + sorted_cols]
-    
-    # Function for gradient color heatmap
-    def color_heatmap_gradient(val):
-        if val == "":
-            return "background-color: white; color: black;"
-        
-        # Convert to float for color calculation
-        try:
-            num_val = float(str(val).replace("%", ""))
-        except:
-            return "background-color: white; color: black;"
-        
-        # Gradient colors
-        if num_val < 0:
-            # Red gradient: -30% = dark red, 0% = bright red
-            intensity = max(0, min(1, (num_val + 30) / 30))
-            rgb = (255, int(107 * intensity), int(107 * intensity))
-        elif num_val < 3.0:
-            # Red to Orange: 0% = red, 3% = orange
-            progress = num_val / 3.0
-            r = 255
-            g = int(107 + (165 - 107) * progress)
-            b = int(107 + (0 - 107) * progress)
-            rgb = (r, g, b)
-        elif num_val < 10.0:
-            # Orange to Green: 3% = orange, 10% = green
-            progress = (num_val - 3.0) / 7.0
-            r = int(255 - (255 - 81) * progress)
-            g = int(165 + (95 - 165) * progress)
-            b = int(0 + (102 - 0) * progress)
-            rgb = (r, g, b)
-        else:
-            # Green gradient: 10% = bright green, 30% = dark green
-            intensity = min(1, (num_val - 10) / 20)
-            rgb = (81 - int(81 * intensity), 207 - int(102 * intensity), 102)
-        
-        return f"background-color: rgb({int(rgb[0])}, {int(rgb[1])}, {int(rgb[2])}); color: white;"
-    
-    # Function to format heatmap values
-    def format_heatmap_value(val):
-        if val == "":
-            return ""
-        if isinstance(val, float):
-            return f"{val:.2f}%"
-        return val
-    
-    # Apply styling
-    styled_heatmap = display_heatmap.style.map(
-        color_heatmap_gradient,
-        subset=[col for col in display_heatmap.columns if col != "Product"]
-    ).format({
-        col: format_heatmap_value for col in display_heatmap.columns if col != "Product"
-    })
-    
-    st.dataframe(styled_heatmap, width='stretch', hide_index=True)
