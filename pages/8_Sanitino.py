@@ -235,20 +235,13 @@ if authenticate_user():
         )
         .alias("color"),
     )
-    countries = df_latest["country"].unique().sort().to_list()
-    country_map = {country: i for i, country in enumerate(countries)}
-    df_latest = df_latest.with_columns(
-        pl.col("country").replace_strict(country_map).alias("country_id")
-    )
-    offset = 0.2
-
     if margin_show:
         annotations = []
         for i in range(len(df_latest)):
             if df_latest["margin"][i] is not None:
                 annotations.append(
                     dict(
-                        x=df_latest["country_id"][i],
+                        x=df_latest["country"][i],
                         y=df_latest["margin"][i] * 100 + 8,
                         text=f"{df_latest['margin'][i] * 100:.1f}%",
                         showarrow=False,
@@ -257,7 +250,7 @@ if authenticate_user():
                 )
                 fig.add_trace(
                     go.Scatter(
-                        x=[df_latest["country_id"][i], df_latest["country_id"][i]],
+                        x=[df_latest["country"][i], df_latest["country"][i]],
                         y=[0, df_latest["margin"][i] * 100],
                         mode="lines",
                         name="",
@@ -270,7 +263,7 @@ if authenticate_user():
                 )
         fig.add_trace(
             go.Scatter(
-                x=df_latest["country_id"],
+                x=df_latest["country"],
                 y=df_latest["margin"] * 100,
                 mode="markers",
                 name="Ancor+Sanitino margin",
@@ -317,7 +310,7 @@ if authenticate_user():
         text_list.append(text)
 
     text_trace = go.Scatter(
-        x=df_latest["country_id"],
+        x=df_latest["country"],
         y=[0] * len(df_latest),
         mode="text",
         text=text_list,

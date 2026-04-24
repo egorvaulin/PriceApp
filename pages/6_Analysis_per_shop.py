@@ -114,7 +114,7 @@ if authenticate_user():
         )
     )
     df_de = (
-        df_de.filter(pl.col("date") == date1)
+        df_de.filter(pl.col("date").is_not_null(), pl.col("date").is_in([date1]))
         .join(
             hnp.select(pl.col("article", "year", "price", "family", "product")),
             on=["article", "year"],
@@ -134,17 +134,17 @@ if authenticate_user():
     dates = [previous_month, previous_week, previous_day, last_day]
 
     df_de_show = df_de_shop.filter(pl.col("date").is_in(dates))
-    df_de_disc = df_de_shop.filter(pl.col("date") == date1)
+    df_de_disc = df_de_shop.filter(pl.col("date").is_not_null(), pl.col("date").is_in([date1]))
     column2 = "price_delivery" if disc else "price"
 
     def price_changes(shop):
         pivot_df = (
-            df_de_show.filter(pl.col("shop") == shop)
+            df_de_show.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop]))
             .with_columns(pl.col("date").cast(pl.Utf8))
             .pivot(
                 values=column2,
                 index="product",
-                columns="date",
+                on="date",
                 aggregate_function="first",
             )
         )
@@ -191,7 +191,7 @@ if authenticate_user():
     )
     shop_rank_counts = df_de_sorted.group_by(["shop", "rank"]).len()
     shop_rank_counts_1 = (
-        shop_rank_counts.filter(pl.col("shop") == shop1, pl.col("rank").is_not_null())
+        shop_rank_counts.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop1]), pl.col("rank").is_not_null())
         .sort("rank")
         .with_columns(
             pl.col("len").alias("count"),
@@ -200,7 +200,7 @@ if authenticate_user():
         .head(4)
     )  # Filter the DataFrame for the first shop
     shop_rank_counts_2 = (
-        shop_rank_counts.filter(pl.col("shop") == shop2, pl.col("rank").is_not_null())
+        shop_rank_counts.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop2]), pl.col("rank").is_not_null())
         .sort("rank")
         .with_columns(
             pl.col("len").alias("count"),
@@ -210,23 +210,23 @@ if authenticate_user():
     )  # Filter the DataFrame for the second shop
 
     df_de_sorted1_ranked = (
-        df_de_sorted.filter(pl.col("shop") == shop1, pl.col("rank") == 1)
+        df_de_sorted.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop1]), pl.col("rank").is_not_null(), pl.col("rank") == 1)
         .select(["article", "product", column2, column])
         .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
     )
     df_de_sorted12_ranked = (
-        df_de_sorted.filter(pl.col("shop") == shop1, pl.col("rank") == 2)
+        df_de_sorted.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop1]), pl.col("rank").is_not_null(), pl.col("rank") == 2)
         .select(["article", "product", column2, column])
         .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
     )
 
     df_de_sorted2_ranked = (
-        df_de_sorted.filter(pl.col("shop") == shop2, pl.col("rank") == 1)
+        df_de_sorted.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop2]), pl.col("rank").is_not_null(), pl.col("rank") == 1)
         .select(["article", "product", column2, column])
         .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
     )
     df_de_sorted22_ranked = (
-        df_de_sorted.filter(pl.col("shop") == shop2, pl.col("rank") == 2)
+        df_de_sorted.filter(pl.col("shop").is_not_null(), pl.col("shop").is_in([shop2]), pl.col("rank").is_not_null(), pl.col("rank") == 2)
         .select(["article", "product", column2, column])
         .sort(by=[column, "product"], descending=[True, False], nulls_last=True)
     )
@@ -234,9 +234,9 @@ if authenticate_user():
     coln1, coln2, coln3 = st.columns([2, 4, 4], gap="large")
     with coln1:
         st.write(f"Rank counts for {shop1}")
-        st.dataframe(shop_rank_counts_1, hide_index=True, use_container_width=True)
+        st.dataframe(shop_rank_counts_1, hide_index=True, width='stretch')
         st.write(f"Rank counts for {shop2}")
-        st.dataframe(shop_rank_counts_2, hide_index=True, use_container_width=True)
+        st.dataframe(shop_rank_counts_2, hide_index=True, width='stretch')
 
     with coln2:
         df_de_sorted1_ranked = df_de_sorted1_ranked.with_columns(
@@ -259,7 +259,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 1)")
-        st.dataframe(df_de_sorted1_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted1_ranked, hide_index=True, width='stretch')
         st.divider()
         df_de_sorted12_ranked = df_de_sorted12_ranked.with_columns(
             pl.col("article").map_elements(
@@ -281,7 +281,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop1} (rank = 2)")
-        st.dataframe(df_de_sorted12_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted12_ranked, hide_index=True, width='stretch')
 
     with coln3:
         df_de_sorted2_ranked = df_de_sorted2_ranked.with_columns(
@@ -304,7 +304,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 1)")
-        st.dataframe(df_de_sorted2_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted2_ranked, hide_index=True, width='stretch')
         st.divider()
         df_de_sorted22_ranked = df_de_sorted22_ranked.with_columns(
             pl.col("article").map_elements(
@@ -326,7 +326,7 @@ if authenticate_user():
             ),
         )
         st.write(f"Products with lowest prices for {shop2} (rank = 2)")
-        st.dataframe(df_de_sorted22_ranked, hide_index=True, use_container_width=True)
+        st.dataframe(df_de_sorted22_ranked, hide_index=True, width='stretch')
 
     st.divider()
 
@@ -337,7 +337,7 @@ if authenticate_user():
         colors,
     ):  # Loop over the shops
         df_shop = df_de_disc.filter(
-            pl.col("shop") == shop
+            pl.col("shop").is_not_null(), pl.col("shop").is_in([shop])
         )  # Filter the DataFrame for the current shop
         fig.add_trace(
             go.Histogram(x=df_shop[column], nbinsx=10, name=shop, marker_color=color)
@@ -363,7 +363,7 @@ if authenticate_user():
             font=dict(size=16, color="#343499"),  # Increase font size
         ),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     st.divider()
 
     col11, col12, col13, col14, col15, col16, col17 = st.columns([2, 2, 2, 1, 2, 2, 2])
