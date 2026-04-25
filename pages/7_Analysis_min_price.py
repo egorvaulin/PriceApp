@@ -82,6 +82,41 @@ if authenticate_user():
     st.markdown("## Analysis per e-traders")
     st.divider()
 
+    with st.expander("ℹ️ How to use this page", expanded=False):
+        st.markdown(
+            """
+            **Step 1 – Choose an e-trader**
+            - Use the **"Select an e-trader"** dropdown to pick the shop you want to focus on.
+            - The analysis will show products where this shop has the **lowest price** (rank 1) and how much cheaper it is compared to competitors.
+
+            **Step 2 – Set a minimum price difference**
+            - Use the **"Minimum price difference in Euro"** slider to filter out small differences.
+            - Only products where at least one competitor charges **at least this much more** than the selected shop will appear.
+
+            **Step 3 – Choose how many competitor ranks to show**
+            - Use the **"Ranks to display"** dropdown to control how many competing shops are shown per product (1 = only the next cheapest, 2 = next two, etc.).
+
+            **Step 4 – Toggle delivery costs**
+            - Tick **"Show for prices with delivery"** to include shipping costs in all price comparisons.
+
+            **Step 5 – Select a reference date**
+            - Use the **"Select a date"** picker to set the date for the analysis.
+
+            ---
+
+            **Reading the results table**
+            | Column | Meaning |
+            |---|---|
+            article / product | Product identifier and name |
+            *Selected shop* | Price of the selected e-trader (always the first shop column) |
+            shop | Competitor shop name |
+            price | Competitor's price on the reference date |
+            diff | Price difference: competitor price minus the selected shop's price (always positive — selected shop is cheaper) |
+
+            Rows are sorted by the **largest maximum difference** first, so the products where the selected shop has the biggest price advantage appear at the top.
+            """
+        )
+
     col1, col2, col3, col4, col5 = st.columns(5, gap="medium")
     with col1:
         shop1 = st.selectbox(

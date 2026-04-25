@@ -82,6 +82,39 @@ if authenticate_user():
     st.markdown("## Analysis per e-traders")
     st.divider()
 
+    with st.expander("ℹ️ How to use this page", expanded=False):
+        st.markdown(
+            """
+            **Step 1 – Choose two e-traders to compare**
+            - Use the two **"Select an e-trader"** dropdowns to pick any two shops side by side.
+
+            **Step 2 – Select a reference date**
+            - Use the **"Select a date"** picker to set the reference date for all analysis on this page.
+
+            **Step 3 – Toggle delivery costs**
+            - Tick **"Show for prices with delivery"** to include shipping costs in all price and discount calculations.
+
+            ---
+
+            **Rank tables (top section)**
+            | Table | Meaning |
+            |---|---|
+            Rank counts | How many times each shop held price rank 1 (lowest), rank 2, etc. across all products |
+            Rank = 1 table | Products where this shop has the **lowest** price on the reference date, sorted by discount from HNP |
+            Rank = 2 table | Products where this shop has the **second lowest** price on the reference date |
+
+            **Discount distribution chart**
+            - Histogram showing how discounts from the HNP list price are spread across all products for each shop on the reference date.
+            - The x-axis shows the discount percentage; the y-axis shows the number of products in that discount range.
+
+            **Price change metrics (bottom section)**
+            - For each shop, shows the number of products whose price **increased** or **decreased** compared to:
+              - the day before the reference date
+              - one week before
+              - one month before
+            """
+        )
+
     col1, col2, col3, col4 = st.columns(4, gap="medium")
     with col1:
         shop1 = st.selectbox(

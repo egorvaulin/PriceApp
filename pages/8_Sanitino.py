@@ -52,6 +52,43 @@ if authenticate_user():
     col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 1, 1, 1, 1, 1, 1])
     with col1:
         st.markdown("## Sanitino analysis")
+
+    with st.expander("ℹ️ How to use this page", expanded=False):
+        st.markdown(
+            """
+            **Step 1 – Set currency exchange rates**
+            - Enter current exchange rates for CZK, RON, PLZ, HUF, DKK, and SEK in the fields at the top.
+            - All non-EUR prices will be converted to EUR using these rates.
+
+            **Step 2 – Choose a product**
+            - Use the **"Select an article"** dropdown to pick a product by article number.
+            - Tick **"Selection by product name"** to search by name instead.
+
+            **Step 3 – Select a reference date**
+            - Use the **"Select a date"** picker to set the reference date for the snapshot charts.
+
+            **Step 4 – Toggle margin display**
+            - Tick **"Show margin"** to overlay the Ancor/Sanitino margin on the top chart and unlock the margin correction table at the bottom.
+
+            ---
+
+            **Multi-row snapshot chart (top)**
+            | Row | Meaning |
+            |---|---|
+            Row 1 (optional) | Ancor+Sanitino margin % per country on the reference date. Red = below 45%, green = above 70%, blue = in between |
+            Row 2 | Active discount % and discounted price in EUR per country |
+            Row 3 | Grouped bars showing EUR prices on the reference date and up to 3 earlier dates (previous day, week, month) |
+
+            **Stock & price-over-time chart (middle)**
+            - Select countries with the multiselect on the left.
+            - Top panel: DE stock quantity over the last 30 days.
+            - Bottom panel: price trend per country over the last 30 days.
+
+            **Margin correction table (bottom, visible when "Show margin" is on)**
+            - Select a country and a margin threshold with the slider.
+            - The table lists all products for that country on the reference date where the margin is **below** the threshold, sorted from lowest margin upward.
+            """
+        )
     with col2:
         czk = st.number_input("CZK rate:", value=25.2)
     with col3:

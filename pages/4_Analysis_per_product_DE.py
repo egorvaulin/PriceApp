@@ -124,6 +124,38 @@ if authenticate_user():
     st.markdown("## Product analysis Germany")
     st.divider()
 
+    with st.expander("ℹ️ How to use this page", expanded=False):
+        st.markdown(
+            """
+            **Step 1 – Choose a product**
+            - Use the **"Select an article from the list"** dropdown to pick a product by article number.
+            - Tick **"Select product by product name"** to search by name instead.
+            - The resolved product name (or article number) is shown in green below the checkbox.
+
+            **Step 2 – Select a reference date**
+            - Use the **"Select a date"** date picker to set the reference date for the bar chart above.
+            - The chart will show all shops and their prices on that specific day.
+
+            **Step 3 – Toggle delivery costs**
+            - Tick **"Select prices with delivery"** to include shipping costs in all price values.
+
+            ---
+
+            **Reading the bar chart (top)**
+            | Element | Meaning |
+            |---|---|
+            Light blue bar segment | Minimum (base) price among all shops |
+            Orange bar segment | Surplus above the minimum price |
+            Grey number on bar | Actual price for that shop |
+            Blue dash marker | Discount from HNP (list price), shown as % above the bar |
+
+            **Reading the comparison table (bottom)**
+            - Shows prices for the selected product across the top shops on **4 dates**: the reference date, previous day, previous week, and previous month.
+            - Tick **"Select days for analysis"** to choose all four dates manually instead of using the automatic offsets.
+            - Shops are sorted by price on the most recent date (lowest first).
+            """
+        )
+
     @st.cache_data
     def load_data(path):
         with open(path, "rb") as f:
@@ -261,7 +293,7 @@ if authenticate_user():
         ).sort("date", descending=False)
 
         pivot_df = filtered_df.pivot(
-            values=column2, index="shop", columns="date", aggregate_function="min"
+            values=column2, index="shop", on="date", aggregate_function="min"
         )
         max_date = pivot_df.columns[-1]
         pivot_df = pivot_df.sort(by=max_date, descending=False, nulls_last=True)

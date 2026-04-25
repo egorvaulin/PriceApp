@@ -52,6 +52,51 @@ if authenticate_user():
     st.markdown("## Analysis - Product Pricing Metrics")
     st.divider()
 
+    with st.expander("ℹ️ How to use this page", expanded=False):
+        st.markdown(
+            """
+            This page has two independent sections.
+
+            ---
+
+            ### Section 1 – Heatmap: Product / Customer Price Deviation
+
+            **Step 1 – Select products and shops**
+            - Use **"Select products"** (max 15) and **"Select shops"** (max 10) multiselects to choose what to compare.
+
+            **Step 2 – Choose a comparison range**
+            - **Last 90 days** – average price over the last 90 days vs Q4 2025 baseline.
+            - **Last 10 days** – average price over the last 10 days vs Q4 2025 baseline.
+            - **Last day** – latest available price vs Q4 2025 baseline.
+
+            **Reading the heatmap**
+            - Each cell shows the **% deviation** of the selected period's average price from the Q4 2025 average.
+            - Colour scale: red = below baseline (price decreased), orange = slight increase (0–3%), yellow/green = moderate increase (3–10%), dark green = strong increase (10%+).
+            - Empty cell = no data for that product/shop combination in the selected period.
+
+            ---
+
+            ### Section 2 – Prices by Shop
+
+            **Step 1 – Select a shop and price type**
+            - Choose a shop from the **"Select a shop"** dropdown.
+            - Choose **"price"** or **"price_delivery"** to include or exclude shipping costs.
+
+            **Reading the results table**
+            | Column | Meaning |
+            |---|---|
+            Q4 2025 Avg | Average price in Q4 2025 (baseline) |
+            Last 90d Avg | Average price over the last 90 days |
+            Diff % (90d) | % change from Q4 baseline over 90 days |
+            Last 10d Avg | Average price over the last 10 days |
+            Diff % (10d) | % change from Q4 baseline over 10 days |
+            Last Day | Most recent available price |
+            Diff % (Last Day) | % change from Q4 baseline for the last day |
+
+            Diff % colours: **red** = below 3%, **orange** = 3–10%, **green** = above 10%.
+            """
+        )
+
     @st.cache_data
     def load_data(path):
         with open(path, "rb") as f:
@@ -359,12 +404,9 @@ if authenticate_user():
     # Convert to pandas for styling
     results_df = pd.DataFrame(results)
     
-    # Fill None values with empty strings for display
-    display_df = results_df.fillna("")
-    
     # Define styling function for percentage columns
     def color_percentage(val):
-        if pd.isna(val) or val == "":
+        if pd.isna(val):
             return ""
         if val < 3.0:
             color = "red"
@@ -375,20 +417,20 @@ if authenticate_user():
         return f"color: {color}; font-weight: bold;"
     
     # Apply styling
-    styled_df = display_df.style.map(
+    styled_df = results_df.style.map(
         color_percentage,
         subset=["Diff % (90d)", "Diff % (10d)", "Diff % (Last Day)"]
     )
     
     # Format percentage columns with % sign
     def format_percentage(val):
-        if pd.isna(val) or val == "":
+        if pd.isna(val):
             return ""
         return f"{val:.2f}%"
     
     # Format numeric columns
     def format_number(val):
-        if pd.isna(val) or val == "":
+        if pd.isna(val):
             return ""
         return f"{val:.2f}"
     
@@ -400,6 +442,6 @@ if authenticate_user():
         "Last 90d Avg": format_number,
         "Last 10d Avg": format_number,
         "Last Day": format_number,
-    })
+    }, na_rep="")
     
     st.dataframe(styled_df, width='stretch', hide_index=True)

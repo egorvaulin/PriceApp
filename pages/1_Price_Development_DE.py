@@ -51,6 +51,35 @@ if authenticate_user():
     st.markdown("## Price development Germany")
     st.divider()
 
+    with st.expander("ℹ️ How to use this page", expanded=False):
+        st.markdown(
+            """
+            **Step 1 – Choose a product**
+            - Use the **"Select an article"** dropdown to pick a product by its article number.
+            - Tick **"Selection by product name"** to search by name instead.
+            - The resolved product name (or article number) is shown in green below the checkbox.
+
+            **Step 2 – Select shops to compare**
+            - Use the **"Select shops to compare"** multiselect to add or remove shops from the chart.
+            - You can compare as many shops as you like; each gets its own coloured line.
+
+            **Step 3 – Toggle delivery costs**
+            - Tick **"Show prices with delivery"** to include shipping costs in all price values.
+
+            ---
+
+            **Reading the chart**
+            | Element | Meaning |
+            |---|---|
+            Coloured solid lines | Price over time for each selected shop |
+            Dashed grey line | Lowest price found across **all** shops on that day (hover to see which shop) |
+            Dashed orange line | Average price across all shops on that day |
+
+            Use the legend at the bottom of the chart to show/hide individual series.
+            Hover over any point on the chart to see the exact price and date.
+            """
+        )
+
     @st.cache_data
     def load_data(path):
         with open(path, "rb") as f:
