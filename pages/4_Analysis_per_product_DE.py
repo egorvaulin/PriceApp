@@ -227,7 +227,7 @@ if authenticate_user():
         df_de.filter(pl.col("article") == article)
         .join(
             hnp.select(
-                pl.col("article", "year", "price", "subcategory", "family", "product")
+                pl.col("article", "year", "price", "product")
             ),
             on=["article", "year"],
             how="left",

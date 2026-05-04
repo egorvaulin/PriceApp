@@ -148,7 +148,7 @@ if authenticate_user():
     df_de = (
         df_de.filter(pl.col("date") == date1)
         .join(
-            hnp.select(pl.col("article", "year", "price", "family", "product")),
+            hnp.select(pl.col("article", "year", "price", "product")),
             on=["article", "year"],
             how="left",
             # coalesce=True,

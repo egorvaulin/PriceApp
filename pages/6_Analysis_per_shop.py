@@ -136,7 +136,7 @@ if authenticate_user():
     df_de_shop = (
         df_de.filter(pl.col("shop").is_in([shop1, shop2]))
         .join(
-            hnp.select(pl.col("article", "year", "price", "family", "product")),
+            hnp.select(pl.col("article", "year", "price", "product")),
             on=["article", "year"],
             how="left",
             # coalesce=True,
@@ -149,7 +149,7 @@ if authenticate_user():
     df_de = (
         df_de.filter(pl.col("date").is_not_null(), pl.col("date").is_in([date1]))
         .join(
-            hnp.select(pl.col("article", "year", "price", "family", "product")),
+            hnp.select(pl.col("article", "year", "price", "product")),
             on=["article", "year"],
             how="left",
             # coalesce=True,

@@ -318,7 +318,7 @@ if authenticate_user():
 
     st.divider()
     shop_data = df_de.filter(pl.col("shop") == selected_shop).join(
-        hnp.select(["article", "year", "product", "subcategory"]),
+        hnp.select(["article", "year", "product"]),
         on=["article", "year"],
         how="left",
     )

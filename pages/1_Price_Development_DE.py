@@ -139,7 +139,7 @@ if authenticate_user():
             st.success(f"{article1}")
             filt1_df = df_de.filter(pl.col("article") == article1)
     filt1_df = filt1_df.join(
-        hnp.select(["article", "year", "product", "price", "subcategory"]),
+        hnp.select(["article", "year", "product", "price"]),
         on=["article", "year"],
         how="left",
         # coalesce=True,
