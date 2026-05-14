@@ -4,7 +4,6 @@ from pathlib import Path
 import dropbox
 import streamlit as st
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import unpad
 import polars as pl
 
 logger = logging.getLogger(__name__)
@@ -21,8 +20,9 @@ def data_path(filename):
 
 
 def decrypt_data(data, key):
-    cipher = AES.new(key, AES.MODE_CBC, iv=data[:16])
-    return unpad(cipher.decrypt(data[16:]), AES.block_size)
+    nonce, tag, ciphertext = data[:12], data[12:28], data[28:]
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    return cipher.decrypt_and_verify(ciphertext, tag)
 
 
 @st.cache_data
