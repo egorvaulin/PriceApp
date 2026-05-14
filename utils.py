@@ -1,7 +1,7 @@
 import logging
 import io
-import toml
 from pathlib import Path
+import dropbox
 import streamlit as st
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
@@ -13,8 +13,7 @@ _ROOT = Path(__file__).parent
 
 
 def get_key():
-    config = toml.load(_ROOT / ".streamlit" / "secrets.toml")
-    return config["secrets"]["data_key"].encode("utf-8")
+    return st.secrets["secrets"]["data_key"].encode("utf-8")
 
 
 def data_path(filename):
@@ -29,8 +28,14 @@ def decrypt_data(data, key):
 @st.cache_data
 def load_parquet(path, key):
     try:
-        with open(path, "rb") as f:
-            encrypted_data = f.read()
+        path = Path(path)
+        if path.exists():
+            with open(path, "rb") as f:
+                encrypted_data = f.read()
+        else:
+            dbx = dropbox.Dropbox(st.secrets["dropbox"]["token"])
+            _, response = dbx.files_download(f"/{path.name}")
+            encrypted_data = response.content
         buffer = io.BytesIO(decrypt_data(encrypted_data, key))
         return pl.read_parquet(buffer)
     except Exception as e:
