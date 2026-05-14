@@ -3,6 +3,3 @@
 .venv
 .streamlit/secrets.toml
 data/
-!data/checklist.parquet
-!data/cust.parquet
-!data/Logs.parquet

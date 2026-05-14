@@ -1,7 +1,7 @@
-streamlit>=1.53.0
-polars>=1.37.1
-pandas>=1.5.3
-pyarrow>=12.0.1
-plotly>=5.15.0
-toml>=0.10.2
-pycryptodome>=3.18.0
+streamlit==1.55.0
+polars==1.37.1
+pandas==2.3.3
+pyarrow==23.0.0
+plotly==6.6.0
+toml==0.10.2
+pycryptodome==3.23.0

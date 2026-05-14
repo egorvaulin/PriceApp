@@ -1,21 +1,13 @@
+import logging
 import polars as pl
 import streamlit as st
 import plotly.graph_objects as go
 from middleware import authenticate_user
-import toml
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
-import pyarrow.parquet as pq
-import io
+from utils import get_key, load_parquet, apply_styling, data_path
 
-config = toml.load("./.streamlit/secrets.toml")
-key = config["secrets"]["data_key"].encode("utf-8")
+logger = logging.getLogger(__name__)
 
-
-def decrypt_data(data, key):
-    cipher = AES.new(key, AES.MODE_CBC, iv=data[:16])
-    pt = unpad(cipher.decrypt(data[16:]), AES.block_size)
-    return pt
+key = get_key()
 
 
 # Page configuration
@@ -24,28 +16,7 @@ st.set_page_config(
 )
 
 
-# Change the font of the entire app
-def set_font(font):
-    st.markdown(
-        f"""
-                <style>
-                body {{font-family: {font};}}
-                </style>
-                """,
-        unsafe_allow_html=True,
-    )
-
-
-set_font("Arial")
-
-# --- HIDE STREAMLIT STYLE ---
-hide_st_style = """
-            <style>
-            footer {visibility: hidden;}
-            button[kind="header"] {display: none;}
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+apply_styling()
 
 if authenticate_user():
     st.markdown("## Price development Germany")
@@ -80,17 +51,12 @@ if authenticate_user():
             """
         )
 
-    @st.cache_data
-    def load_data(path):
-        with open(path, "rb") as f:
-            encrypted_data = f.read()
-            buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-            df = pl.read_parquet(buffer)
-        return df
-
-    df = load_data("./data/Ien.parquet")
-    
-    hnp = load_data("./data/tlp.parquet")
+    try:
+        df = load_parquet(data_path("Ien.parquet"), key)
+        hnp = load_parquet(data_path("tlp.parquet"), key)
+    except Exception:
+        st.error("Failed to load data. Please contact the administrator.")
+        st.stop()
     hnp = hnp.with_columns(
         pl.col("article").cast(pl.Int32),
         pl.col("year").cast(pl.Int32)

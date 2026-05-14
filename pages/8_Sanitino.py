@@ -1,22 +1,15 @@
+import logging
 import streamlit as st
 import polars as pl
 from datetime import timedelta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from middleware import authenticate_user
-import toml
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
-import io
+from utils import get_key, load_parquet, apply_styling, data_path
 
-config = toml.load("./.streamlit/secrets.toml")
-key = config["secrets"]["data_key"].encode("utf-8")
+logger = logging.getLogger(__name__)
 
-
-def decrypt_data(data, key):
-    cipher = AES.new(key, AES.MODE_CBC, iv=data[:16])
-    pt = unpad(cipher.decrypt(data[16:]), AES.block_size)
-    return pt
+key = get_key()
 
 
 # Page configuration
@@ -25,28 +18,7 @@ st.set_page_config(
 )
 
 
-# Change the font of the entire app
-def set_font(font):
-    st.markdown(
-        f"""
-                <style>
-                body {{font-family: {font};}}
-                </style>
-                """,
-        unsafe_allow_html=True,
-    )
-
-
-set_font("Arial")
-
-# --- HIDE STREAMLIT STYLE ---
-hide_st_style = """
-            <style>
-            footer {visibility: hidden;}
-            button[kind="header"] {display: none;}
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+apply_styling()
 
 if authenticate_user():
     col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 1, 1, 1, 1, 1, 1])
@@ -90,26 +62,18 @@ if authenticate_user():
             """
         )
     with col2:
-        czk = st.number_input("CZK rate:", value=25.2)
+        czk = st.number_input("CZK rate:", value=25.2, min_value=25.2 * 0.8, max_value=25.2 * 1.2)
     with col3:
-        ron = st.number_input("RON rate:", value=4.98)
+        ron = st.number_input("RON rate:", value=4.98, min_value=4.98 * 0.8, max_value=4.98 * 1.2)
     with col4:
-        plz = st.number_input("PLZ rate:", value=4.26)
+        plz = st.number_input("PLZ rate:", value=4.26, min_value=4.26 * 0.8, max_value=4.26 * 1.2)
     with col5:
-        huf = st.number_input("HUF rate:", value=410.0)
+        huf = st.number_input("HUF rate:", value=410.0, min_value=410.0 * 0.8, max_value=410.0 * 1.2)
     with col6:
-        dkk = st.number_input("DKK rate:", value=7.5)
+        dkk = st.number_input("DKK rate:", value=7.5, min_value=7.5 * 0.8, max_value=7.5 * 1.2)
     with col7:
-        sek = st.number_input("SEK rate:", value=10.7)
+        sek = st.number_input("SEK rate:", value=10.7, min_value=10.7 * 0.8, max_value=10.7 * 1.2)
     st.divider()
-
-    @st.cache_data
-    def load_data(path):
-        with open(path, "rb") as f:
-            encrypted_data = f.read()
-            buffer = io.BytesIO(decrypt_data(encrypted_data, key))
-            df = pl.read_parquet(buffer)
-        return df
 
     def calculate_price(row, czk, ron, plz):
         if row["country"] == "cz":
@@ -127,7 +91,12 @@ if authenticate_user():
         else:
             return row["price"]
 
-    df = load_data("./data/Sen.parquet")
+    try:
+        df = load_parquet(data_path("Sen.parquet"), key)
+        ancor = load_parquet(data_path("an.parquet"), key)
+    except Exception:
+        st.error("Failed to load data. Please contact the administrator.")
+        st.stop()
     df = df.with_columns(year=pl.col("date").dt.year())
     vat = pl.DataFrame(
         {
@@ -135,7 +104,6 @@ if authenticate_user():
             "vat": [0.19, 0.21, 0.21, 0.2, 0.22, 0.23, 0.19, 0.21, 0.23, 0.27, 0.25, 0.25, 0.255],
         }
     )
-    ancor = load_data("./data/an.parquet")
     ancor = ancor.with_columns(pl.col("article").cast(pl.Int32))
     
     df1 = (
