@@ -33,7 +33,11 @@ def load_parquet(path, key):
             with open(path, "rb") as f:
                 encrypted_data = f.read()
         else:
-            dbx = dropbox.Dropbox(st.secrets["dropbox"]["token"])
+            dbx = dropbox.Dropbox(
+                oauth2_refresh_token=st.secrets["dropbox"]["refresh_token"],
+                app_key=st.secrets["dropbox"]["app_key"],
+                app_secret=st.secrets["dropbox"]["app_secret"],
+            )
             _, response = dbx.files_download(f"/{path.name}")
             encrypted_data = response.content
         buffer = io.BytesIO(decrypt_data(encrypted_data, key))
