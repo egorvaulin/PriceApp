@@ -127,6 +127,11 @@ if authenticate_user():
             disc2=1 - pl.col("price_delivery") / pl.col("price_right"),
         )
     )
+    if df_de.is_empty():
+        st.divider()
+        st.info(f"No data available for {date1}. Please select another date.")
+        st.stop()
+
     column2 = "price_delivery" if disc else "price"
 
     df_de_sorted = df_de.sort(["date", column2]).with_columns(
@@ -142,6 +147,13 @@ if authenticate_user():
         .get_column("article")
         .to_list()
     )
+    if not art:
+        st.divider()
+        st.info(
+            f"{shop1} has no products with the lowest price on {date1}. "
+            "Please select another e-trader or date."
+        )
+        st.stop()
     df_de_sorted2 = (
         df_de_sorted.filter(pl.col("article").is_in(art), pl.col("rank") <= rank + 1)
         .select(["article", "shop", "product", column2])
@@ -196,7 +208,10 @@ if authenticate_user():
     )
 
     st.divider()
-    try:
+    if df_unpivoted_rend.is_empty():
+        st.info(
+            f"No products found where {shop1} is at least {min_diff:.0f} € cheaper "
+            "than a competitor. Try a lower minimum price difference."
+        )
+    else:
         st.dataframe(df_unpivoted_rend, hide_index=True, width='stretch')
-    except:
-        st.write("No data to display")
