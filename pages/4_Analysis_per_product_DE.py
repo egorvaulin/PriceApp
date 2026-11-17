@@ -156,7 +156,7 @@ if authenticate_user():
         .sort("article")
     )
     articles = df1["article"].to_list()
-    products = df1["product"].to_list()
+    products = [p for p in df1["product"].to_list() if p is not None]
 
     st.markdown("###### Select a product for analysis.")
     col1, col2 = st.columns([2, 5], gap="large")
@@ -214,11 +214,23 @@ if authenticate_user():
         column = "disc2" if check else "disc1"
         column2 = "price_delivery" if check else "price"
 
-        graph1 = create_chart(
-            df_sel_date.sort(by=column, descending=True).head(12),
-            f"Shops and prices for {product} with discounts from HNP",
+        # Shops without a price / delivery price / list price cannot be charted
+        df_chart = (
+            df_sel_date.drop_nulls([column, column2])
+            .sort(by=column, descending=True)
+            .head(12)
         )
-        st.plotly_chart(graph1, width='stretch')
+        if df_chart.is_empty():
+            st.info(
+                f"No price data available for {product} on {date1}. "
+                "Please select another date or product."
+            )
+        else:
+            graph1 = create_chart(
+                df_chart,
+                f"Shops and prices for {product} with discounts from HNP",
+            )
+            st.plotly_chart(graph1, width='stretch')
 
     st.divider()
 
@@ -261,9 +273,12 @@ if authenticate_user():
             pl.col("date").is_in([date1, previous_day, previous_week, previous_month])
         ).sort("date", descending=False)
 
-        pivot_df = filtered_df.pivot(
-            values=column2, index="shop", on="date", aggregate_function="min"
-        )
-        max_date = pivot_df.columns[-1]
-        pivot_df = pivot_df.sort(by=max_date, descending=False, nulls_last=True)
-        st.dataframe(pivot_df.head(10), width='stretch', hide_index=True)
+        if filtered_df.is_empty():
+            st.info("No price data available for the selected dates.")
+        else:
+            pivot_df = filtered_df.pivot(
+                values=column2, index="shop", on="date", aggregate_function="min"
+            )
+            max_date = pivot_df.columns[-1]
+            pivot_df = pivot_df.sort(by=max_date, descending=False, nulls_last=True)
+            st.dataframe(pivot_df.head(10), width='stretch', hide_index=True)

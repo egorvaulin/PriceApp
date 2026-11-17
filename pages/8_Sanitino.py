@@ -120,7 +120,7 @@ if authenticate_user():
         .sort("article")
     )
     articles = df1["article"].to_list()
-    products = df1["product"].to_list()
+    products = [p for p in df1["product"].to_list() if p is not None]
 
     col1, col2, col3, col4 = st.columns([1, 1.5, 1, 1], gap="large")
     with col1:
@@ -311,8 +311,12 @@ if authenticate_user():
 
     text_list = []
     for i in range(len(df_latest)):
-        text = f'<b>{df_latest["discount"][i]/100:.0%}</b> || {df_latest["price_disc"][i]:.1f} €'
-        text_list.append(text)
+        discount_i = df_latest["discount"][i]
+        price_disc_i = df_latest["price_disc"][i]
+        if discount_i is None or price_disc_i is None:
+            text_list.append("n/a")
+        else:
+            text_list.append(f"<b>{discount_i/100:.0%}</b> || {price_disc_i:.1f} €")
 
     text_trace = go.Scatter(
         x=df_latest["country"],

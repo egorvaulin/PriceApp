@@ -81,7 +81,7 @@ if authenticate_user():
         .sort("article")
     )
     articles = df1["article"].to_list()
-    products = df1["product"].to_list()
+    products = [p for p in df1["product"].to_list() if p is not None]
 
     col1, col2, col3, col4 = st.columns(
         4, gap="medium"
@@ -137,7 +137,7 @@ if authenticate_user():
     )  # Filter the data based on selected shops
 
     min_price_data = (
-        filt1_df.sort(column)
+        filt1_df.sort(column, nulls_last=True)
         .group_by("date")
         .agg(
             pl.col(column).first().alias("min_price"),
@@ -171,7 +171,7 @@ if authenticate_user():
                 y=shop_data[column].to_list(),
                 name=shop,
                 mode="lines",
-                line=dict(color=colors_p[i]),
+                line=dict(color=colors_p[i % len(colors_p)]),
             )
         )
     # Add minimum price line

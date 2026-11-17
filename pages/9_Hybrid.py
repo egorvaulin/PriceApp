@@ -2,7 +2,7 @@ import logging
 import polars as pl
 import streamlit as st
 from middleware import authenticate_user
-from datetime import timedelta
+from datetime import date, timedelta
 import pandas as pd
 from utils import get_key, load_parquet, apply_styling, data_path
 
@@ -32,16 +32,20 @@ if authenticate_user():
 
             ### Section 1 – Heatmap: Product / Customer Price Deviation
 
-            **Step 1 – Select products and shops**
+            **Step 1 – Select the baseline period**
+            - Use **"Select baseline period"** to choose the period whose average price is the reference. The available data range is shown above it.
+            - The baseline applies to both sections of this page.
+
+            **Step 2 – Select products and shops**
             - Use **"Select products"** (max 15) and **"Select shops"** (max 10) multiselects to choose what to compare.
 
-            **Step 2 – Choose a comparison range**
-            - **Last 90 days** – average price over the last 90 days vs Q4 2025 baseline.
-            - **Last 10 days** – average price over the last 10 days vs Q4 2025 baseline.
-            - **Last day** – latest available price vs Q4 2025 baseline.
+            **Step 3 – Choose a comparison range**
+            - **Last 90 days** – average price over the last 90 days vs the baseline.
+            - **Last 10 days** – average price over the last 10 days vs the baseline.
+            - **Last day** – latest available price vs the baseline.
 
             **Reading the heatmap**
-            - Each cell shows the **% deviation** of the selected period's average price from the Q4 2025 average.
+            - Each cell shows the **% deviation** of the selected period's average price from the baseline average.
             - Colour scale: red = below baseline (price decreased), orange = slight increase (0–3%), yellow/green = moderate increase (3–10%), dark green = strong increase (10%+).
             - Empty cell = no data for that product/shop combination in the selected period.
 
@@ -56,13 +60,13 @@ if authenticate_user():
             **Reading the results table**
             | Column | Meaning |
             |---|---|
-            Q4 2025 Avg | Average price in Q4 2025 (baseline) |
+            Baseline Avg | Average price in the selected baseline period |
             Last 90d Avg | Average price over the last 90 days |
-            Diff % (90d) | % change from Q4 baseline over 90 days |
+            Diff % (90d) | % change from the baseline over 90 days |
             Last 10d Avg | Average price over the last 10 days |
-            Diff % (10d) | % change from Q4 baseline over 10 days |
+            Diff % (10d) | % change from the baseline over 10 days |
             Last Day | Most recent available price |
-            Diff % (Last Day) | % change from Q4 baseline for the last day |
+            Diff % (Last Day) | % change from the baseline for the last day |
 
             Diff % colours: **red** = below 3%, **orange** = 3–10%, **green** = above 10%.
             """
@@ -96,7 +100,34 @@ if authenticate_user():
     
     all_shops = df_de.select(pl.col("shop")).unique().sort("shop")["shop"].to_list()
     all_shops = [s for s in all_shops if s is not None]
-    
+
+    # Baseline period: the loaded data does not necessarily cover a fixed quarter,
+    # so the user picks the period; default is Q4 2025 if available, else the first 30 days
+    data_min = df_de["date"].min()
+    data_max = df_de["date"].max()
+    default_start = max(data_min, date(2025, 10, 1))
+    default_end = min(data_max, date(2025, 12, 31))
+    if default_start > default_end:
+        default_start = data_min
+        default_end = min(data_min + timedelta(days=29), data_max)
+
+    st.info(
+        f"Available data: {data_min.strftime('%d.%m.%Y')} – {data_max.strftime('%d.%m.%Y')}. "
+        "All price deviations are calculated against the average price in the baseline period selected below."
+    )
+    baseline_range = st.date_input(
+        "Select baseline period",
+        value=(default_start, default_end),
+        min_value=data_min,
+        max_value=data_max,
+        key="baseline_period",
+    )
+    if len(baseline_range) != 2:
+        st.info("Please select both the start and the end date of the baseline period.")
+        st.stop()
+    baseline_start, baseline_end = baseline_range
+    baseline_label = f"{baseline_start.strftime('%d.%m.%Y')} – {baseline_end.strftime('%d.%m.%Y')}"
+
     # Heatmap section
     st.markdown("## Heatmap - Product / Customer Price Deviation")
     st.divider()
@@ -151,10 +182,10 @@ if authenticate_user():
             if product_data.is_empty():
                 continue
             
-            # Q4 2025 baseline
+            # Baseline period
             q4_data = product_data.filter(
-                (pl.col("date") >= pl.datetime(2025, 10, 1)) & 
-                (pl.col("date") <= pl.datetime(2025, 12, 31))
+                (pl.col("date") >= baseline_start) &
+                (pl.col("date") <= baseline_end)
             )
             q4_avg = q4_data.select(pl.col("price").mean())[0, 0] if not q4_data.is_empty() else None
             
@@ -188,8 +219,8 @@ if authenticate_user():
             
             heatmap_results.append(row_data)
         
-        # Convert to pandas for heatmap styling
-        heatmap_df = pd.DataFrame(heatmap_results)
+        # Convert to pandas for heatmap styling (explicit columns keep an empty result valid)
+        heatmap_df = pd.DataFrame(heatmap_results, columns=["Product"] + selected_shops)
         
         # Fill NaN values with empty strings for display
         display_heatmap = heatmap_df.fillna("")
@@ -265,7 +296,13 @@ if authenticate_user():
             {'selector': 'td:first-child', 'props': [('width', '120px !important'), ('min-width', '120px'), ('max-width', '120px')]},
         ])
         
-        st.dataframe(styled_heatmap, width='stretch', hide_index=True)
+        if heatmap_results:
+            st.dataframe(styled_heatmap, width='stretch', hide_index=True)
+        else:
+            st.info(
+                f"No data for the selected products in the baseline period {baseline_label}. "
+                "Please select another baseline period or other products."
+            )
 
     st.divider()
     st.markdown("## Prices by Shop")
@@ -293,8 +330,6 @@ if authenticate_user():
     max_date = shop_data.select(pl.col("date").max())[0, 0]
 
     # Get date ranges
-    q4_2025_start = pl.datetime(2025, 10, 1)
-    q4_2025_end = pl.datetime(2025, 12, 31)
     last_90_days_start = max_date - timedelta(days=90)
     last_10_days_start = max_date - timedelta(days=10)
 
@@ -320,9 +355,9 @@ if authenticate_user():
         if product_data.is_empty():
             continue
 
-        # Q4 2025 average
+        # Baseline period average
         q4_data = product_data.filter(
-            (pl.col("date") >= q4_2025_start) & (pl.col("date") <= q4_2025_end)
+            (pl.col("date") >= baseline_start) & (pl.col("date") <= baseline_end)
         )
         q4_avg = q4_data.select(pl.col(price_type).mean())[0, 0] if not q4_data.is_empty() else None
 
@@ -354,7 +389,7 @@ if authenticate_user():
         results.append({
             "Article": article,
             "Product": product,
-            "Q4 2025 Avg": round(q4_avg, 2) if q4_avg else None,
+            "Baseline Avg": round(q4_avg, 2) if q4_avg else None,
             "Last 90d Avg": round(last_90_avg, 2) if last_90_avg else None,
             "Diff % (90d)": pct_diff_90,
             "Last 10d Avg": round(last_10_avg, 2) if last_10_avg else None,
@@ -366,7 +401,12 @@ if authenticate_user():
     # Display results table
     st.divider()
     st.markdown(f"### {selected_shop} - Selected Metrics (Price type: {price_type})")
+    st.caption(f"Baseline period: {baseline_label}")
     
+    if not results:
+        st.info(f"No data available for {selected_shop}.")
+        st.stop()
+
     # Convert to pandas for styling
     results_df = pd.DataFrame(results)
     
@@ -404,7 +444,7 @@ if authenticate_user():
         "Diff % (90d)": format_percentage,
         "Diff % (10d)": format_percentage,
         "Diff % (Last Day)": format_percentage,
-        "Q4 2025 Avg": format_number,
+        "Baseline Avg": format_number,
         "Last 90d Avg": format_number,
         "Last 10d Avg": format_number,
         "Last Day": format_number,
